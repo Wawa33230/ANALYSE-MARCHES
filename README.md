@@ -10,7 +10,17 @@ lot 01 Plomberie / Travaux d'Accessibilité).
 
 ---
 
-## 🚀 Démarrage en 3 étapes (Windows)
+## 🚀 Démarrage (Windows)
+
+### Étape 0 — Récupérer le projet sur ton PC (indispensable)
+Les fichiers doivent être **sur ton ordinateur** pour fonctionner et pour s'ouvrir dans
+le Bloc-notes (sur GitHub dans le navigateur, ils ne sont pas encore chez toi).
+1. Sur la page GitHub, vérifie que la **branche** affichée est bien
+   `claude/tender-search-tool-setup-x65gpm`.
+2. Bouton vert **`< > Code`** → **`Download ZIP`**.
+3. Dans **Téléchargements**, **clic droit** sur le ZIP → **« Extraire tout… »**
+   (par ex. sur le Bureau).
+4. Travaille toujours **depuis le dossier extrait** — jamais depuis le ZIP ni le navigateur.
 
 ### Étape 1 — Installer Python (une seule fois)
 1. Va sur **https://www.python.org/downloads/** et télécharge Python 3.
@@ -131,7 +141,15 @@ ANALYSE-MARCHES/
 
 ## ❓ Problèmes courants
 
-- **« Python n'a pas été trouvé »** → réinstalle Python en cochant « Add Python to PATH ».
+- **« Python n'a pas été trouvé » / la fenêtre se ferme ou rien ne s'actualise** →
+  ouvre l'Invite de commandes (`cmd`) et tape `python --version`.
+  - Si ça ouvre le **Microsoft Store** ou dit « n'est pas reconnu » : Python n'est pas
+    dans le PATH. **Réinstalle** depuis python.org en cochant **« Add python.exe to PATH »**,
+    puis **redémarre l'ordinateur**.
+  - Le lanceur garde maintenant la fenêtre noire ouverte (`pause`) : lis le message
+    affiché, il indique précisément quoi corriger.
+- **« requirements.txt introuvable »** → tu n'as pas le projet complet : refais l'**Étape 0**
+  (Download ZIP + Extraire tout) et lance le `.bat` depuis le dossier extrait.
 - **Une source affiche « indisponible »** → ce n'est pas bloquant, l'outil continue avec
   les autres. Réessaie plus tard (le site public était peut-être momentanément lent).
 - **Le tableau est vide** → élargis `jours_recents`, ou passe `perimetre: national`,
