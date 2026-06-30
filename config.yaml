@@ -81,7 +81,6 @@ scoring:
     - sanitaire
     - lavabo
     - robinetterie
-    - entretien courant
     - amenagement de salle de bain
 
   # --- Ta SPECIFICITE : pose de panneaux muraux (bonus, te differencie) ---
@@ -301,6 +300,26 @@ scoring:
     - toiture
     - couverture
     - etancheite
+
+  # --- EXCLUSION "MAINTENANCE / ENTRETIEN COURANT" (contrats de maintenance generale) ---
+  #  Tu fais de la RENOVATION de salle de bain, pas de la maintenance courante.
+  #  Ces mots ECARTENT le marche SAUF si un vrai mot-cle salle de bain / accessibilite
+  #  / adaptation est present (cas d'un accord-cadre avec un lot d'accessibilite).
+  mots_cles_maintenance:
+    - entretien courant
+    - entretien du patrimoine
+    - entretien des logements
+    - entretien des batiments
+    - maintenance courante
+    - maintenance multitechnique
+    - multiservices
+    - multi-services
+    - multitechnique
+    - petits travaux
+    - depannage
+    - remise en etat des logements
+    - tous corps d'etat
+    - tous corps d'etat (tce)
 
   # --- Signal CARRELAGE (tu poses des panneaux, pas du carrelage) ---
   #  Ne supprime pas le marche : il est seulement signale (drapeau) et

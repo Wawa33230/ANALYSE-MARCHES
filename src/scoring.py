@@ -158,6 +158,13 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
             excluded = True
             flags.append("construction/gros oeuvre (hors cible)")
 
+    # 7a-bis) Exclusion MAINTENANCE / ENTRETIEN COURANT (contrats de maintenance generale).
+    #     On ecarte SAUF si un vrai mot-cle salle de bain / accessibilite est present.
+    maint_hits = _found(scoring_cfg.get("mots_cles_maintenance", []), text)
+    if maint_hits and not has_bathroom:
+        excluded = True
+        flags.append("entretien courant (hors adaptation)")
+
     # 7b) Exclusion "grosse plomberie" / chauffage / eau chaude sanitaire collective.
     #     IMPORTANT : on ecarte sauf VRAI mot-cle salle de bain (has_bathroom), et NON
     #     sur le simple CPV plomberie (45330000) qui est partage avec l'eau chaude/chauffage.
