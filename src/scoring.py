@@ -220,9 +220,14 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
     else:
         category = "hors_cible"
 
+    tender.days_left = compute_days_left(tender)
+    if tender.days_left is None:
+        # Date limite inconnue (frequent sur TED) : on previent au lieu de laisser croire
+        # que le marche est ouvert. A verifier via le lien officiel.
+        flags.append("⚠ date a verifier")
+
     tender.score = score
     tender.category = category
     tender.matched = sorted(set(matched), key=lambda x: x.lower())
     tender.flags = flags
-    tender.days_left = compute_days_left(tender)
     return tender

@@ -13,10 +13,13 @@ l'outil (un avertissement est affiche dans la console).
 
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 from .base import http_post_json
 from ..models import Tender
+
+DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 API = "https://api.ted.europa.eu/v3/notices/search"
 NOTICE_URL = "https://ted.europa.eu/fr/notice/-/detail/{pub}"
@@ -46,6 +49,9 @@ def fetch(config) -> list[Tender]:
             "classification-cpv",
             "publication-date",
             "deadline-receipt-tender-date-lot",
+            "deadline-receipt-request-date-lot",
+            "deadline-date-lot",
+            "deadline",
             "links",
         ],
         "limit": 100,
@@ -70,12 +76,37 @@ def fetch(config) -> list[Tender]:
                 market_type="Avis europeen (> seuils)",
                 cpv=_as_list(n.get("classification-cpv")),
                 publication_date=_val(n.get("publication-date"))[:10],
-                deadline=_val(n.get("deadline-receipt-tender-date-lot"))[:10],
+                deadline=_find_deadline(n),
                 url=NOTICE_URL.format(pub=pub) if pub else "https://ted.europa.eu/",
                 description="",
             )
         )
     return tenders
+
+
+def _collect_dates(node, under_deadline: bool, out: list):
+    """Parcourt recursivement la structure d'un avis et collecte toutes les dates
+    (AAAA-MM-JJ) trouvees sous une cle contenant 'deadline'."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            kd = under_deadline or ("deadline" in str(k).lower())
+            _collect_dates(v, kd, out)
+    elif isinstance(node, list):
+        for item in node:
+            _collect_dates(item, under_deadline, out)
+    elif under_deadline and isinstance(node, (str, int)):
+        m = DATE_RE.search(str(node))
+        if m:
+            out.append(m.group(0))
+
+
+def _find_deadline(notice: dict) -> str:
+    """Date limite de l'avis TED, quelle que soit la forme exacte du champ.
+    On prend la date la plus tardive trouvee (si plusieurs lots), pour ne pas
+    masquer a tort un marche dont un lot est encore ouvert."""
+    dates: list[str] = []
+    _collect_dates(notice, False, dates)
+    return max(dates) if dates else ""
 
 
 def _val(v) -> str:

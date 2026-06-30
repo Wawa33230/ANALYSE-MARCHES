@@ -165,12 +165,12 @@ const LABELS = {labels};
 let state = {{ filter:"tous", q:"", sortKey:"score", sortDir:-1 }};
 
 function daysClass(d) {{
-  if (d===null||d===undefined) return "";
+  if (d===null||d===undefined) return "d-soon";
   if (d<0) return "d-urgent"; if (d<=7) return "d-urgent";
   if (d<=14) return "d-soon"; return "d-ok";
 }}
 function daysText(d) {{
-  if (d===null||d===undefined) return "&mdash;";
+  if (d===null||d===undefined) return "a verifier";
   if (d<0) return "echu"; return d + " j";
 }}
 function esc(s) {{ return (s||"").replace(/[&<>]/g, c=>({{"&":"&amp;","<":"&lt;",">":"&gt;"}}[c])); }}
@@ -181,7 +181,7 @@ function tags(t) {{
     let cls="tag"; const lf=f.toLowerCase();
     if (lf.includes("client connu")) cls="tag star";
     else if (lf.includes("carrelage")||lf.includes("hors")||lf.includes("construction")||lf.includes("echu")) cls="tag bad";
-    else if (lf.includes("amiante")||lf.includes("autres")) cls="tag warn";
+    else if (lf.includes("verifier")||lf.includes("amiante")||lf.includes("autres")) cls="tag warn";
     else if (lf.includes("bailleur")||lf.includes("accord")) cls="tag ok";
     h += `<span class="${{cls}}">${{esc(f)}}</span>`;
   }});

@@ -107,6 +107,13 @@ def main(argv=None):
         if before - len(tenders):
             print(f">> {before - len(tenders)} marche(s) echu(s) masque(s).")
 
+    # Filtrage optionnel : marches sans date limite connue (souvent TED)
+    if config.get("recherche.masquer_sans_date_limite", False):
+        before = len(tenders)
+        tenders = [t for t in tenders if t.days_left is not None]
+        if before - len(tenders):
+            print(f">> {before - len(tenders)} marche(s) sans date limite masque(s).")
+
     # Filtrage : hors cible
     if not config.get("affichage.garder_hors_cible", False):
         tenders = [t for t in tenders if t.category != "hors_cible"]

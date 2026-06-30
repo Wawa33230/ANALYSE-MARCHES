@@ -10,6 +10,9 @@
 recherche:
   jours_recents: 45          # On recupere les annonces publiees dans les N derniers jours
   masquer_echus: true        # Cacher les marches dont la date limite est deja passee
+  masquer_sans_date_limite: false   # true = cacher aussi les marches dont la date limite
+                                     # est inconnue (souvent des avis TED). Par defaut on
+                                     # les affiche avec un drapeau "a verifier".
 
 geographie:
   perimetre: national        # "national" = toute la France. Sinon "departements".
