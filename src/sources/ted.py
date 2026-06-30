@@ -65,6 +65,7 @@ def fetch(config) -> list[Tender]:
                 id=f"ted:{pub}",
                 source="TED (UE)",
                 title=_val(n.get("notice-title")),
+                reference=pub,
                 buyer=_val(n.get("buyer-name")),
                 market_type="Avis europeen (> seuils)",
                 cpv=_as_list(n.get("classification-cpv")),

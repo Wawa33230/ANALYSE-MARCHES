@@ -58,6 +58,44 @@ def _extract_cpv(record: dict) -> list[str]:
     return [c for c in codes if c.isdigit()]
 
 
+def _extract_reference(record: dict, idweb: str) -> str:
+    """Reference du marche : on privilegie la reference de l'acheteur (ex '2026020'),
+    sinon on retombe sur l'identifiant de l'avis BOAMP (toujours present)."""
+    # 1) Champs directs eventuels
+    for key in ("reference", "reference_marche", "num_marche", "nummarche"):
+        v = record.get(key)
+        if v:
+            return str(v)
+    # 2) Recherche dans le bloc structure "donnees"
+    raw = record.get("donnees")
+    if raw:
+        try:
+            data = json.loads(raw) if isinstance(raw, str) else raw
+
+            def _walk(node):
+                if isinstance(node, dict):
+                    for k, val in node.items():
+                        if "reference" in str(k).lower() and isinstance(val, (str, int)) and str(val).strip():
+                            return str(val).strip()
+                        found = _walk(val)
+                        if found:
+                            return found
+                elif isinstance(node, list):
+                    for item in node:
+                        found = _walk(item)
+                        if found:
+                            return found
+                return None
+
+            ref = _walk(data)
+            if ref:
+                return ref
+        except Exception:
+            pass
+    # 3) Repli : identifiant de l'avis BOAMP
+    return idweb
+
+
 def _dept(record: dict) -> str:
     v = record.get("code_departement")
     if isinstance(v, list):
@@ -115,6 +153,7 @@ def fetch(config) -> list[Tender]:
                     id=f"boamp:{idweb}",
                     source="BOAMP",
                     title=_first(rec, "objet", default=""),
+                    reference=_extract_reference(rec, idweb),
                     buyer=_first(rec, "nomacheteur", "nom_acheteur", default=""),
                     department=_dept(rec),
                     market_type=_first(rec, "type_marche", "type_marche_facette", "nature", default=""),

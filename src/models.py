@@ -14,6 +14,7 @@ class Tender:
     id: str                                   # identifiant unique (ex: idweb BOAMP)
     source: str                               # "BOAMP", "TED", "marches-publics.info"...
     title: str                                # objet du marche
+    reference: str = ""                        # reference du marche (a retrouver sur les sites)
     buyer: str = ""                           # nom de l'acheteur (le bailleur)
     department: str = ""                       # code(s) departement, ex "45" ou "45, 18"
     region: str = ""

@@ -20,6 +20,11 @@ from .base import http_get
 from ..models import Tender
 
 DATE_RE = re.compile(r"(\d{4})[-/](\d{2})[-/](\d{2})")
+# Reference type "Reference : XXXX", "Ref. XXXX", "n° XXXX", "consultation XXXX"
+REF_RE = re.compile(
+    r"(?:r[ée]f[ée]rence|r[ée]f\.?|n[°o]|consultation)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-_/.]{2,})",
+    re.IGNORECASE,
+)
 
 
 def _text(elem) -> str:
@@ -66,11 +71,14 @@ def _parse_feed(content: bytes, feed_url: str) -> list[Tender]:
 
         desc = _strip_tags(desc)
         deadline = _guess_deadline(desc) or _guess_deadline(title)
+        m = REF_RE.search(title) or REF_RE.search(desc)
+        reference = m.group(1).rstrip(".,;:") if m else ""
         tenders.append(
             Tender(
                 id=f"rss:{link or title}",
                 source=source_name,
                 title=title,
+                reference=reference,
                 buyer="",
                 market_type="Plateforme (flux)",
                 publication_date=_guess_deadline(pub),

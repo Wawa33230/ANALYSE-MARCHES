@@ -10,6 +10,7 @@ from .models import Tender
 SAMPLE = [
     Tender(
         id="demo:1",
+        reference="2026020",
         source="BOAMP",
         title="Accord-cadre a bons de commande - Travaux d'entretien courant des logements "
               "en electricite, plomberie et menuiseries - Lot 01 Plomberie Travaux d'Accessibilite",
@@ -25,6 +26,7 @@ SAMPLE = [
     ),
     Tender(
         id="demo:2",
+        reference="2026-AC-LOGI-07",
         source="TED (UE)",
         title="Adaptation de salles de bains pour le maintien a domicile - Remplacement "
               "baignoire/douche et pose de receveurs extra-plats",
@@ -39,6 +41,7 @@ SAMPLE = [
     ),
     Tender(
         id="demo:3",
+        reference="TH-2026-037-SDB",
         source="BOAMP",
         title="Marche de renovation de salles de bains avec pose de carrelage et faience murale",
         buyer="Tours Habitat",
@@ -52,6 +55,7 @@ SAMPLE = [
     ),
     Tender(
         id="demo:4",
+        reference="GDH-CHAUF-2026",
         source="BOAMP",
         title="Maintenance des chaufferies collectives et reseau de chaleur - contrat de chauffage",
         buyer="Grand Dijon Habitat",
@@ -65,6 +69,7 @@ SAMPLE = [
     ),
     Tender(
         id="demo:5",
+        reference="MPI-1845210",
         source="marches-publics.info",
         title="Travaux d'accessibilite des logements - amenagement de douches PMR",
         buyer="Vendee Habitat",
@@ -78,6 +83,7 @@ SAMPLE = [
     ),
     Tender(
         id="demo:6",
+        reference="LFG-PLOMB-2026-12",
         source="BOAMP",
         title="Entretien courant plomberie sanitaire du patrimoine - lavabos, WC, robinetterie",
         buyer="SA HLM Le Logis Familial",

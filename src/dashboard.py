@@ -95,6 +95,9 @@ _TEMPLATE = """<!DOCTYPE html>
   .hors_cible .score {{ background:var(--rouge-bg); color:var(--rouge); }}
   .obj {{ font-weight:600; color:#13202e; cursor:pointer; }}
   .obj:hover {{ text-decoration:underline; }}
+  .ref {{ font-family:Consolas,Menlo,monospace; font-size:12px; background:#eef3f8;
+         color:#1f4e79; padding:2px 6px; border-radius:4px; white-space:nowrap;
+         user-select:all; }}
   .tag {{ display:inline-block; background:#eef1f4; color:#445; border-radius:5px;
          padding:2px 7px; font-size:11px; margin:2px 3px 0 0; }}
   .tag.warn {{ background:var(--orange-bg); color:var(--orange); }}
@@ -136,6 +139,7 @@ _TEMPLATE = """<!DOCTYPE html>
   <thead><tr>
     <th data-k="score">Score</th>
     <th data-k="title">Objet</th>
+    <th data-k="reference">Reference</th>
     <th data-k="buyer">Acheteur</th>
     <th data-k="department">Dpt</th>
     <th data-k="market_type">Type</th>
@@ -187,7 +191,7 @@ function matchFilter(t) {{
   if (state.filter==="a_regarder" && t.category!=="a_regarder") return false;
   if (state.filter==="semaine" && !(t.days_left!==null && t.days_left>=0 && t.days_left<=7)) return false;
   if (state.q) {{
-    const blob = (t.title+" "+t.buyer+" "+t.department+" "+t.source+" "+(t.matched||[]).join(" ")).toLowerCase();
+    const blob = (t.title+" "+t.reference+" "+t.buyer+" "+t.department+" "+t.source+" "+(t.matched||[]).join(" ")).toLowerCase();
     if (!blob.includes(state.q.toLowerCase())) return false;
   }}
   return true;
@@ -211,6 +215,7 @@ function render() {{
     tr.innerHTML = `
       <td><span class="score">${{t.score}}</span></td>
       <td><span class="obj" onclick="toggle(${{i}})">${{esc(t.title)}}</span><div>${{tags(t)}}</div></td>
+      <td class="ref" title="Reference a rechercher sur le site">${{esc(t.reference)||"&mdash;"}}</td>
       <td>${{esc(t.buyer)||"&mdash;"}}</td>
       <td>${{esc(t.department)||"&mdash;"}}</td>
       <td>${{esc(t.market_type)||"&mdash;"}}</td>
@@ -222,7 +227,8 @@ function render() {{
     body.appendChild(tr);
     const det = document.createElement("tr");
     det.className = "detail"; det.id = "det"+i;
-    det.innerHTML = `<td colspan="10">
+    det.innerHTML = `<td colspan="11">
+       <b>Reference :</b> <span class="ref">${{esc(t.reference)||"non precisee"}}</span> &nbsp;|&nbsp; <b>Identifiant :</b> ${{esc(t.id)}}<br><br>
        <b>Mots-cles detectes :</b> ${{(t.matched||[]).map(m=>`<span class="tag">${{esc(m)}}</span>`).join("")||"&mdash;"}}<br><br>
        <b>Categorie :</b> ${{LABELS[t.category]||t.category}} &nbsp;|&nbsp; <b>CPV :</b> ${{(t.cpv||[]).join(", ")||"non precise"}}<br><br>
        <b>Description :</b> ${{esc(t.description)||"&mdash;"}}</td>`;
