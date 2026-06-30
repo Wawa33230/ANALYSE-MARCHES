@@ -93,7 +93,7 @@ SAMPLE = [
         publication_date="2026-06-10",
         deadline="2026-08-12",
         url="https://www.boamp.fr/",
-        description="Plomberie sanitaire courante, sans volet accessibilite explicite.",
+        description="Plomberie sanitaire courante : reparations, remplacement de robinetterie, debouchage.",
     ),
 ]
 
