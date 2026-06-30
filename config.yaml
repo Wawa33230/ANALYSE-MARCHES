@@ -163,10 +163,19 @@ scoring:
     - habitat
     - habitations
     - office public
+    - office departemental
+    - office municipal
+    - office de l'habitat
+    - office d'habitations
     - oph
+    - ophlm
+    - "o.p.h"
+    - "o.p.h.l.m"
     - opac
+    - "o.p.a.c"
     - opdhlm
     - hlm
+    - "h.l.m"
     - esh
     - patrimoine
     - logement
