@@ -58,7 +58,13 @@ scoring:
     - personne a mobilite reduite
     - maintien a domicile
     - adaptation du logement
+    - adaptation des logements
     - adaptation salle de bain
+    - adaptation salles de bain
+    - adaptation        # mot discriminant n1 (cf. analyse 5 ans : "accord-cadre d'adaptation")
+    - mobilite reduite
+    - mise en accessibilite
+    - mise aux normes pmr
     - douche
     - receveur
     - receveur extra plat
@@ -96,7 +102,9 @@ scoring:
     "45332000": 28   # Travaux de plomberie et de pose de conduits d'evacuation
     "45211310": 28   # Salles de bains
     "44411000": 20   # Articles sanitaires (baignoires, douches, receveurs...)
-    "45350000": 8    # Installations mecaniques (entretien batiment)
+    "45454100": 10   # Travaux de renovation
+    # NB : le CPV 45330000 est partage avec les marches "eau chaude/chauffage" ->
+    #      ce sont les MOTS-CLES (baignoire, douche, adaptation) qui font le tri.
 
   # --- CLIENTS CIBLES : bailleurs deja clients (ex-apporteur d'affaires) ---
   #  Un marche dont l'acheteur correspond a l'un de ces noms recoit un gros bonus
@@ -204,18 +212,27 @@ scoring:
     - isolation thermique exterieure
     - batiment neuf
 
-  # --- EXCLUSIONS : "grosse plomberie" / hors cible ---
-  #  Logique intelligente : ces mots N'EXCLUENT le marche QUE s'il n'y a
-  #  AUCUN signal "salle de bain / accessibilite". Un marche multi-lots
-  #  (ex: "electricite, plomberie, menuiseries") reste donc detecte.
+  # --- EXCLUSIONS : "grosse plomberie" / chauffage / eau chaude collective ---
+  #  D'apres l'analyse 5 ans, le 1er pollueur est l'EAU CHAUDE SANITAIRE / CHAUFFAGE
+  #  ("production d'eau chaude sanitaire", "exploitation des installations de chauffage").
+  #  Ces mots ECARTENT le marche SAUF si un vrai mot-cle salle de bain (baignoire,
+  #  douche, adaptation, accessibilite...) est present.
   mots_cles_exclus:
     - chauffage
     - chaudiere
     - chaudieres
     - reseau de chaleur
     - chaufferie
+    - eau chaude sanitaire     # faux ami : c'est de l'ECS collective, pas ta cible
+    - eau chaude
+    - production d'eau chaude
     - production d'eau chaude collective
+    - exploitation             # contrats d'exploitation/maintenance chauffage (SERVICES)
+    - d'exploitation
+    - maintenance des installations
     - desembouage
+    - calorifuge
+    - cvc
     - climatisation
     - pompe a chaleur
     - genie climatique

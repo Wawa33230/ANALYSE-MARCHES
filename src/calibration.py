@@ -46,11 +46,16 @@ def _bigrams(tokens):
     return [f"{a} {b}" for a, b in zip(tokens, tokens[1:])]
 
 
-# Heuristique "marche salle de bain" pour reperer le sous-ensemble cible
+# Heuristique "marche salle de bain" pour reperer le sous-ensemble REELLEMENT cible.
+# On exclut volontairement "sanitaire"/"plomberie" seuls (faux amis : "eau chaude
+# sanitaire" = chauffage). On garde les termes specifiques a la renovation de SDB.
 CIBLE_HINT = re.compile(
-    r"baignoire|douche|salle de bain|salle d'eau|sanitaire|plomberie|pmr|accessibil|receveur|adaptation",
+    r"baignoire|douche|salle de bain|salle d'eau|\bpmr\b|accessibil|mobilite reduite|"
+    r"receveur|adaptation|maintien a domicile",
     re.IGNORECASE,
 )
+# Anti-faux-ami : si l'objet parle d'eau chaude/chauffage/exploitation, ce n'est pas cible
+ANTI_HINT = re.compile(r"eau chaude|chauffage|exploitation|chaufferie|ventilation|climatis", re.IGNORECASE)
 
 
 def analyser(config: Config, annees: int) -> dict:
@@ -83,7 +88,7 @@ def analyser(config: Config, annees: int) -> dict:
         for a in avis:
             objet = as_text(a.title)
             toks = _tokens(objet)
-            is_cible = bool(CIBLE_HINT.search(objet))
+            is_cible = bool(CIBLE_HINT.search(objet)) and not ANTI_HINT.search(objet)
             n_total += 1
             if a.market_type:
                 types_all[as_text(a.market_type)[:50]] += 1

@@ -150,10 +150,13 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
             excluded = True
             flags.append("construction/gros oeuvre (hors cible)")
 
-    # 7b) Exclusion "grosse plomberie" / chauffage : ecarte sauf signal coeur (SDB ou CPV)
+    # 7b) Exclusion "grosse plomberie" / chauffage / eau chaude sanitaire collective.
+    #     IMPORTANT : on ecarte sauf VRAI mot-cle salle de bain (has_bathroom), et NON
+    #     sur le simple CPV plomberie (45330000) qui est partage avec l'eau chaude/chauffage.
+    #     C'est ce qui elimine les marches "production d'eau chaude sanitaire / exploitation".
     excl_hits = _found(scoring_cfg.get("mots_cles_exclus", []), text)
     if excl_hits:
-        if has_core:
+        if has_bathroom:
             score -= min(len(excl_hits) * 3, 9)
             flags.append("autres lots: " + ", ".join(excl_hits[:3]))
         else:
@@ -163,6 +166,18 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
     # 7c) Pertinence minimale : sans aucun signal plomberie/sanitaire -> hors cible
     if not has_plumb:
         excluded = True
+
+    # 7d) Nature du marche : la renovation de SDB est un TRAVAUX. Les contrats
+    #     d'exploitation/maintenance chauffage sont des SERVICES -> on retrograde.
+    nature = type_n
+    if "travaux" in nature:
+        score += 6
+    elif "service" in nature:
+        score -= 12
+        if not has_bathroom:
+            flags.append("marche de services")
+    elif "fourniture" in nature:
+        score -= 6
 
     # 8) Signal carrelage (tu poses des panneaux, pas du carrelage)
     carr_hits = _found(scoring_cfg.get("mots_cles_carrelage", []), text)
