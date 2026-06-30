@@ -149,7 +149,7 @@ def _map_record(rec: dict) -> Tender:
     )
 
 
-def _fetch_where(where: str, max_records: int) -> list[Tender]:
+def _fetch_where(where: str, max_records: int, label: str = "") -> list[Tender]:
     tenders: list[Tender] = []
     offset = 0
     while offset < max_records:
@@ -159,9 +159,13 @@ def _fetch_where(where: str, max_records: int) -> list[Tender]:
         if not results:
             break
         tenders += [_map_record(r) for r in results]
+        if label:
+            print(f"      {label} : {len(tenders)} avis...", end="\r", flush=True)
         if len(results) < PAGE_SIZE:
             break
         offset += PAGE_SIZE
+    if label:
+        print(f"      {label} : {len(tenders)} avis recuperes.        ")
     return tenders
 
 
@@ -180,7 +184,7 @@ def fetch(config) -> list[Tender]:
     prio_kw = scoring.get("mots_cles_prioritaires", [])
     if prio_kw:
         where1 = _build_search_clause(prio_kw) + date_clause + geo
-        for t in _fetch_where(where1, max_records=3000):
+        for t in _fetch_where(where1, max_records=2000, label="salle de bain / accessibilite"):
             if t.id not in seen:
                 seen.add(t.id)
                 tenders.append(t)
@@ -190,7 +194,7 @@ def fetch(config) -> list[Tender]:
     sec_kw = [k for k in scoring.get("mots_cles_secondaires", []) if k.lower() != "entretien courant"]
     if sec_kw:
         where2 = _build_search_clause(sec_kw) + date_clause + geo
-        for t in _fetch_where(where2, max_records=1000):
+        for t in _fetch_where(where2, max_records=800, label="plomberie / sanitaire"):
             if t.id not in seen:
                 seen.add(t.id)
                 tenders.append(t)
@@ -199,16 +203,18 @@ def fetch(config) -> list[Tender]:
     #             geographique : on veut TOUS leurs marches en cours, ou qu'ils soient.
     bailleurs = scoring.get("bailleurs_cibles", [])
     if bailleurs:
+        print("      bailleurs connus : recherche par nom...", end="\r", flush=True)
         # On decoupe en paquets de 25 pour ne pas faire une clause demesuree
         for i in range(0, len(bailleurs), 25):
             lot = bailleurs[i:i + 25]
             where3 = _build_search_clause(lot) + date_clause
             try:
-                for t in _fetch_where(where3, max_records=600):
+                for t in _fetch_where(where3, max_records=400):
                     if t.id not in seen:
                         seen.add(t.id)
                         tenders.append(t)
             except Exception:
                 continue
+        print("      bailleurs connus : termine.                     ")
 
     return tenders

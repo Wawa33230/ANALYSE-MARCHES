@@ -44,6 +44,9 @@ def collect(config: Config, demo: bool) -> list:
     tenders = []
     sources = config.sources
 
+    print("(La premiere collecte nationale peut prendre 1 a 3 minutes - c'est normal.)")
+    print()
+
     if sources.get("boamp"):
         tenders += _run_source("BOAMP", config)
     if sources.get("ted"):
