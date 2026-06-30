@@ -18,8 +18,18 @@ from typing import Iterable
 from .models import Tender
 
 
-def normalize(text: str) -> str:
+def as_text(value) -> str:
+    """Convertit n'importe quelle valeur (texte, liste, None...) en chaine de caracteres."""
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        return " ".join(as_text(v) for v in value)
+    return str(value)
+
+
+def normalize(text) -> str:
     """Minuscule + suppression des accents, pour comparer sans se soucier de la casse."""
+    text = as_text(text)
     if not text:
         return ""
     text = unicodedata.normalize("NFD", text)
@@ -61,9 +71,9 @@ def compute_days_left(tender: Tender) -> int | None:
 def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
     """Calcule score, categorie, mots-cles trouves et drapeaux pour un marche."""
 
-    text = normalize(" ".join([tender.title or "", tender.description or "", tender.buyer or ""]))
-    buyer_n = normalize(tender.buyer or "")
-    type_n = normalize(tender.market_type or "")
+    text = normalize(" ".join([as_text(tender.title), as_text(tender.description), as_text(tender.buyer)]))
+    buyer_n = normalize(tender.buyer)
+    type_n = normalize(tender.market_type)
 
     score = 0
     matched: list[str] = []

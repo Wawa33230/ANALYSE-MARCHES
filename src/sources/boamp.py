@@ -103,11 +103,22 @@ def _dept(record: dict) -> str:
     return str(v) if v else ""
 
 
+def _to_str(v) -> str:
+    """Convertit n'importe quelle valeur BOAMP en texte (les champs peuvent etre des listes)."""
+    if v is None:
+        return ""
+    if isinstance(v, list):
+        return ", ".join(_to_str(x) for x in v if x not in (None, ""))
+    if isinstance(v, dict):
+        return ", ".join(_to_str(x) for x in v.values() if x not in (None, ""))
+    return str(v)
+
+
 def _first(record: dict, *keys, default=""):
     for k in keys:
         v = record.get(k)
-        if v:
-            return v
+        if v not in (None, "", []):
+            return _to_str(v)
     return default
 
 

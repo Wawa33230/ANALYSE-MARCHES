@@ -26,8 +26,8 @@ def _dedupe(tenders: list) -> list:
     """Supprime les doublons (meme id, ou meme objet+acheteur)."""
     seen_id, seen_key, out = set(), set(), []
     for t in tenders:
-        from .scoring import normalize
-        key = normalize((t.title or "")[:80] + "|" + (t.buyer or ""))
+        from .scoring import normalize, as_text
+        key = normalize(as_text(t.title)[:80] + "|" + as_text(t.buyer))
         if t.id in seen_id or key in seen_key:
             continue
         seen_id.add(t.id)
