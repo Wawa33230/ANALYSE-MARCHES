@@ -18,6 +18,7 @@ geographie:
 sources:
   boamp: true                # Source officielle nationale (recommandee, gratuite)
   ted: true                  # Marches europeens > seuils (gros accords-cadres)
+  aws: true                  # marches-publics.info / AWS-Achat (recherche publique)
   plateformes: true          # Flux RSS/Atom des plateformes (voir section "plateformes")
 
 # ---------------------------------------------------------------------------
@@ -39,35 +40,43 @@ plateformes:
 # ===========================================================================
 scoring:
 
-  # --- Mots-cles CIBLE : coeur de ton metier (gros bonus) ---
+  # --- Mots-cles CIBLE : coeur de ton metier = renovation de salle de bain (gros bonus) ---
   mots_cles_prioritaires:
     - baignoire
     - baignoire en douche
     - remplacement de baignoire
+    - depose de baignoire
+    - depose baignoire
+    - remplacement baignoire par douche
+    - pose de douche
+    - douche a l'italienne
+    - salle de bain
+    - salle de bains
+    - salle d'eau
     - accessibilite
     - PMR
     - personne a mobilite reduite
     - maintien a domicile
     - adaptation du logement
     - adaptation salle de bain
-    - salle d'eau
     - douche
     - receveur
     - receveur extra plat
+    - bac a douche
     - barre de maintien
     - barre de relevage
     - travaux d'accessibilite
 
   # --- Mots-cles SECONDAIRES : contexte plomberie / sanitaire (bonus moyen) ---
+  #  (volontairement limites : on ne veut PAS de construction, juste plomberie sanitaire)
   mots_cles_secondaires:
+    - plomberie sanitaire
     - plomberie
     - sanitaire
-    - salle de bain
-    - salle de bains
     - lavabo
+    - robinetterie
     - entretien courant
-    - rehabilitation
-    - logement
+    - amenagement de salle de bain
 
   # --- Ta SPECIFICITE : pose de panneaux muraux (bonus, te differencie) ---
   mots_cles_panneaux:
@@ -80,13 +89,64 @@ scoring:
     - sans carrelage
 
   # --- Codes CPV pertinents : valeur = nombre de points accordes ---
+  #  (cibles sur la plomberie/sanitaire/salle de bain - PAS les CPV de construction)
   cpv_cibles:
     "45330000": 30   # Travaux de plomberie
-    "45332400": 30   # Travaux d'installation d'appareils sanitaires
-    "45211310": 25   # Salles de bains
-    "45454000": 15   # Travaux de rehabilitation
-    "45215000": 10   # Construction logements / sante
-    "50700000": 10   # Entretien d'installations de batiment
+    "45332400": 32   # Travaux d'installation d'appareils sanitaires
+    "45332000": 28   # Travaux de plomberie et de pose de conduits d'evacuation
+    "45211310": 28   # Salles de bains
+    "44411000": 20   # Articles sanitaires (baignoires, douches, receveurs...)
+    "45350000": 8    # Installations mecaniques (entretien batiment)
+
+  # --- CLIENTS CIBLES : bailleurs deja clients (ex-apporteur d'affaires) ---
+  #  Un marche dont l'acheteur correspond a l'un de ces noms recoit un gros bonus
+  #  et le drapeau "client connu". BOAMP recherche aussi directement par ces noms.
+  #  (issu de ton fichier Marches.csv - 58 bailleurs, nettoye)
+  bailleurs_cibles:
+    - "13 habitat"
+    - clairsienne
+    - immobiliere rhone alpes
+    - orne habitat
+    - aiguillon construction
+    - archipel habitat
+    - aveyron habitat
+    - brest metropole habitat
+    - correze habitat
+    - cote d'azur habitat
+    - creusalis
+    - domanys
+    - eneal
+    - erilia
+    - espacil
+    - est ensemble habitat
+    - france loire
+    - habitat audois
+    - habitat hdf
+    - habitat perpignan
+    - hamaris
+    - haute savoie habitat
+    - in cite
+    - ligeris
+    - lot habitat
+    - manche habitat
+    - mesolia
+    - montlucon habitat
+    - morbihan habitat
+    - noalis
+    - nove gestion
+    - odhac
+    - oph de l'ariege
+    - perigord habitat
+    - polygone
+    - sa hlm de l'oise
+    - sevre loire habitat
+    - sikoa
+    - simar
+    - un toit pour tous
+    - val de berry
+    - ozanam
+    - agglo de la rochelle
+    - logiouest
 
   # --- Indices "bailleur social" dans le nom de l'acheteur (bonus unique) ---
   indices_bailleur:
@@ -116,6 +176,33 @@ scoring:
     - bons de commande
     - bon de commande
     - multi-attributaires
+
+  # --- EXCLUSIONS "CONSTRUCTION / GROS OEUVRE" (tu fais UNIQUEMENT de la renovation SDB) ---
+  #  Ces mots ECARTENT le marche SAUF si un vrai mot-cle "salle de bain / douche /
+  #  baignoire / accessibilite" est present. Ils eliminent la construction neuve,
+  #  les rehabilitations lourdes tous corps d'etat, la maconnerie, etc.
+  mots_cles_construction:
+    - construction
+    - construction neuve
+    - logements neufs
+    - maison individuelle
+    - maisons individuelles
+    - gros oeuvre
+    - gros-oeuvre
+    - maconnerie
+    - charpente
+    - terrassement
+    - vrd
+    - voirie et reseaux
+    - extension
+    - surelevation
+    - demolition reconstruction
+    - amenagement exterieur
+    - espaces verts
+    - ravalement
+    - ravalement de facade
+    - isolation thermique exterieure
+    - batiment neuf
 
   # --- EXCLUSIONS : "grosse plomberie" / hors cible ---
   #  Logique intelligente : ces mots N'EXCLUENT le marche QUE s'il n'y a

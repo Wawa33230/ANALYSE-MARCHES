@@ -48,6 +48,8 @@ def collect(config: Config, demo: bool) -> list:
         tenders += _run_source("BOAMP", config)
     if sources.get("ted"):
         tenders += _run_source("TED", config)
+    if sources.get("aws"):
+        tenders += _run_source("AWS", config)
     if sources.get("plateformes"):
         tenders += _run_source("plateformes", config)
 
@@ -61,6 +63,8 @@ def _run_source(name: str, config: Config) -> list:
             from .sources import boamp as mod
         elif name == "TED":
             from .sources import ted as mod
+        elif name == "AWS":
+            from .sources import marches_publics_info as mod
         else:
             from .sources import plateformes as mod
         result = mod.fetch(config)

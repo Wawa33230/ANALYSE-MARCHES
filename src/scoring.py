@@ -11,6 +11,7 @@ Principe :
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from datetime import date, datetime
 from typing import Iterable
@@ -38,11 +39,16 @@ def normalize(text) -> str:
 
 
 def _found(keywords: Iterable[str], haystack: str) -> list[str]:
-    """Retourne la liste des mots-cles (normalises) presents dans le texte."""
+    """Retourne la liste des mots-cles presents dans le texte.
+
+    On exige un DEBUT de mot (\\b) pour eviter qu'un mot-cle court matche au milieu
+    d'un autre mot (ex: 'ite' dans 'accessibilite'), tout en autorisant les suffixes
+    (pluriels) : 'douche' matche 'douches', 'salle de bain' matche 'salle de bains'.
+    """
     hits = []
     for kw in keywords or []:
         nk = normalize(kw)
-        if nk and nk in haystack:
+        if nk and re.search(r"\b" + re.escape(nk), haystack):
             hits.append(kw)
     return hits
 
@@ -105,8 +111,13 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
             cpv_hit = True
             matched.append(f"CPV {code}")
 
-    # 5) Acheteur = bailleur social ? bonus unique +15
-    if _found(scoring_cfg.get("indices_bailleur", []), buyer_n):
+    # 5) Acheteur = CLIENT DEJA CONNU (ex-apporteur) ? gros bonus +28
+    client_connu = _found(scoring_cfg.get("bailleurs_cibles", []), buyer_n)
+    if client_connu:
+        score += 28
+        flags.append("★ client connu")
+    # 5b) Sinon, acheteur = bailleur social ? bonus unique +15
+    elif _found(scoring_cfg.get("indices_bailleur", []), buyer_n):
         score += 15
         flags.append("bailleur social")
 
@@ -115,23 +126,43 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
         score += 12
         flags.append("accord-cadre")
 
-    # --- Signal "coeur de cible" : empeche une exclusion abusive ---
-    has_core = bool(prio_hits) or cpv_hit or any(
-        w in text for w in ("plomberie", "sanitaire", "salle de bain", "salle d'eau", "douche")
+    # --- Signaux de cible ---
+    # Signal FORT "salle de bain" : un vrai mot-cle baignoire/douche/accessibilite/PMR...
+    has_bathroom = bool(prio_hits)
+    # Signal "coeur" : salle de bain OU CPV plomberie/sanitaire (protege les marches
+    # type France Loire : "entretien courant ... plomberie", CPV 45330000)
+    has_core = has_bathroom or cpv_hit
+    # Signal minimal "plomberie sanitaire" pour etre retenu du tout
+    has_plumb = has_core or bool(sec_hits) or any(
+        w in text for w in ("plomberie", "sanitaire", "salle de bain", "salle d'eau")
     )
 
-    # 7) Exclusions "grosse plomberie" / hors metier
-    excl_hits = _found(scoring_cfg.get("mots_cles_exclus", []), text)
     excluded = False
+
+    # 7a) Exclusion CONSTRUCTION / GROS OEUVRE (tu fais UNIQUEMENT de la renovation SDB).
+    #     On ecarte SAUF si un vrai mot-cle salle de bain est present.
+    constr_hits = _found(scoring_cfg.get("mots_cles_construction", []), text)
+    if constr_hits:
+        if has_bathroom:
+            score -= min(len(constr_hits) * 4, 12)
+            flags.append("autres travaux: " + ", ".join(constr_hits[:3]))
+        else:
+            excluded = True
+            flags.append("construction/gros oeuvre (hors cible)")
+
+    # 7b) Exclusion "grosse plomberie" / chauffage : ecarte sauf signal coeur (SDB ou CPV)
+    excl_hits = _found(scoring_cfg.get("mots_cles_exclus", []), text)
     if excl_hits:
         if has_core:
-            # marche multi-lots : on signale seulement, petite penalite plafonnee
             score -= min(len(excl_hits) * 3, 9)
             flags.append("autres lots: " + ", ".join(excl_hits[:3]))
         else:
-            # aucun signal salle de bain -> vraiment hors cible
             excluded = True
             flags.append("hors metier: " + ", ".join(excl_hits[:3]))
+
+    # 7c) Pertinence minimale : sans aucun signal plomberie/sanitaire -> hors cible
+    if not has_plumb:
+        excluded = True
 
     # 8) Signal carrelage (tu poses des panneaux, pas du carrelage)
     carr_hits = _found(scoring_cfg.get("mots_cles_carrelage", []), text)

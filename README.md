@@ -157,5 +157,19 @@ ANALYSE-MARCHES/
 
 ---
 
-📄 Voir aussi **`STRATEGIE-ET-FEUILLE-DE-ROUTE.md`** : l'analyse du projet global et le
-plan pour passer de sous-traitant à **titulaire direct** des marchés.
+## 🎯 Affiner le ciblage avec tes bailleurs clients
+
+L'outil connaît déjà tes **bailleurs clients** (issus de `Marches.csv`) : leurs marchés
+remontent en tête avec le drapeau **★ client connu**.
+
+Pour rendre le tableau encore plus précis, lance **`calibrer-filtres.bat`** : il analyse
+**5 ans** de l'historique de tes bailleurs (CPV, vocabulaire réel, types de marché) et
+génère `data/calibration-bailleurs.json`. **Envoie-moi ce fichier** : j'ajuste les
+mots-clés et CPV des filtres en conséquence. Détails dans **`BAILLEURS-CLIENTS.md`**.
+
+---
+
+📄 Voir aussi :
+- **`BAILLEURS-CLIENTS.md`** : tes bailleurs cibles + l'outil de calibrage des filtres.
+- **`STRATEGIE-ET-FEUILLE-DE-ROUTE.md`** : l'analyse du projet global et le plan pour
+  passer de sous-traitant à **titulaire direct** des marchés.

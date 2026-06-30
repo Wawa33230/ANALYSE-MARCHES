@@ -103,6 +103,7 @@ _TEMPLATE = """<!DOCTYPE html>
   .tag.warn {{ background:var(--orange-bg); color:var(--orange); }}
   .tag.bad {{ background:var(--rouge-bg); color:var(--rouge); }}
   .tag.ok {{ background:var(--vert-bg); color:var(--vert); }}
+  .tag.star {{ background:#fff4d6; color:#9a6b00; font-weight:700; border:1px solid #f0d488; }}
   .days {{ font-weight:700; }}
   .d-urgent {{ color:var(--rouge); }}
   .d-soon {{ color:var(--orange); }}
@@ -154,7 +155,7 @@ _TEMPLATE = """<!DOCTYPE html>
 <div id="empty" class="empty" style="display:none">Aucun marche ne correspond a ce filtre.</div>
 
 <footer>
-  Outil interne de veille &middot; sources : BOAMP, TED (UE), flux plateformes.<br>
+  Outil interne de veille &middot; sources : BOAMP, TED (UE), marches-publics.info (AWS), flux plateformes.<br>
   Verifie toujours l'avis officiel via le lien avant de t'engager. Les scores sont indicatifs.
 </footer>
 
@@ -178,8 +179,9 @@ function tags(t) {{
   let h="";
   (t.flags||[]).forEach(f=>{{
     let cls="tag"; const lf=f.toLowerCase();
-    if (lf.includes("carrelage")||lf.includes("hors metier")||lf.includes("echu")) cls="tag bad";
-    else if (lf.includes("amiante")||lf.includes("autres lots")) cls="tag warn";
+    if (lf.includes("client connu")) cls="tag star";
+    else if (lf.includes("carrelage")||lf.includes("hors")||lf.includes("construction")||lf.includes("echu")) cls="tag bad";
+    else if (lf.includes("amiante")||lf.includes("autres")) cls="tag warn";
     else if (lf.includes("bailleur")||lf.includes("accord")) cls="tag ok";
     h += `<span class="${{cls}}">${{esc(f)}}</span>`;
   }});

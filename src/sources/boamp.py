@@ -122,61 +122,93 @@ def _first(record: dict, *keys, default=""):
     return default
 
 
-def fetch(config) -> list[Tender]:
-    scoring = config.scoring
-    keywords = (
-        scoring.get("mots_cles_prioritaires", [])
-        + scoring.get("mots_cles_secondaires", [])
-    )
-    # On enleve les mots trop generiques pour la requete reseau (on affinera au scoring)
-    keywords = [k for k in keywords if k.lower() not in ("logement",)]
-
-    jours = config.get("recherche.jours_recents", 45)
-    since = (date.today() - timedelta(days=int(jours))).isoformat()
-
-    where = _build_search_clause(keywords) + f' and dateparution >= "{since}"'
-
+def _geo_clause(config) -> str:
     perimetre = config.get("geographie.perimetre", "national")
     depts = config.get("geographie.departements", []) or []
     if perimetre == "departements" and depts:
         dept_clause = " or ".join(f'code_departement = "{d}"' for d in depts)
-        where += f" and ({dept_clause})"
+        return f" and ({dept_clause})"
+    return ""
 
+
+def _map_record(rec: dict) -> Tender:
+    idweb = str(_first(rec, "idweb", "id", default=""))
+    return Tender(
+        id=f"boamp:{idweb}",
+        source="BOAMP",
+        title=_first(rec, "objet", default=""),
+        reference=_extract_reference(rec, idweb),
+        buyer=_first(rec, "nomacheteur", "nom_acheteur", default=""),
+        department=_dept(rec),
+        market_type=_first(rec, "type_marche", "type_marche_facette", "nature", default=""),
+        cpv=_extract_cpv(rec),
+        publication_date=str(_first(rec, "dateparution", default="") or "")[:10],
+        deadline=str(_first(rec, "datelimitereponse", "datelimite", default="") or "")[:10],
+        url=AVIS_URL.format(idweb=idweb) if idweb else "https://www.boamp.fr/",
+        description=_first(rec, "descripteur_libelle", "famille_libelle", default=""),
+    )
+
+
+def _fetch_where(where: str, max_records: int) -> list[Tender]:
     tenders: list[Tender] = []
     offset = 0
-    max_records = 1000  # garde-fou
     while offset < max_records:
-        params = {
-            "where": where,
-            "limit": PAGE_SIZE,
-            "offset": offset,
-            "order_by": "dateparution desc",
-        }
+        params = {"where": where, "limit": PAGE_SIZE, "offset": offset, "order_by": "dateparution desc"}
         resp = http_get(API, params=params)
-        payload = resp.json()
-        results = payload.get("results", [])
+        results = resp.json().get("results", [])
         if not results:
             break
-        for rec in results:
-            idweb = str(_first(rec, "idweb", "id", default=""))
-            tenders.append(
-                Tender(
-                    id=f"boamp:{idweb}",
-                    source="BOAMP",
-                    title=_first(rec, "objet", default=""),
-                    reference=_extract_reference(rec, idweb),
-                    buyer=_first(rec, "nomacheteur", "nom_acheteur", default=""),
-                    department=_dept(rec),
-                    market_type=_first(rec, "type_marche", "type_marche_facette", "nature", default=""),
-                    cpv=_extract_cpv(rec),
-                    publication_date=str(_first(rec, "dateparution", default="") or "")[:10],
-                    deadline=str(_first(rec, "datelimitereponse", "datelimite", default="") or "")[:10],
-                    url=AVIS_URL.format(idweb=idweb) if idweb else "https://www.boamp.fr/",
-                    description=_first(rec, "descripteur_libelle", "famille_libelle", default=""),
-                )
-            )
+        tenders += [_map_record(r) for r in results]
         if len(results) < PAGE_SIZE:
             break
         offset += PAGE_SIZE
+    return tenders
+
+
+def fetch(config) -> list[Tender]:
+    scoring = config.scoring
+    jours = config.get("recherche.jours_recents", 45)
+    since = (date.today() - timedelta(days=int(jours))).isoformat()
+    date_clause = f' and dateparution >= "{since}"'
+    geo = _geo_clause(config)
+
+    tenders: list[Tender] = []
+    seen: set[str] = set()
+
+    # Requete 1 : mots-cles "salle de bain" (rares, a fort signal) -> recuperes EN TOTALITE
+    #             pour ne jamais tronquer un marche cible comme France Loire / Logiouest.
+    prio_kw = scoring.get("mots_cles_prioritaires", [])
+    if prio_kw:
+        where1 = _build_search_clause(prio_kw) + date_clause + geo
+        for t in _fetch_where(where1, max_records=3000):
+            if t.id not in seen:
+                seen.add(t.id)
+                tenders.append(t)
+
+    # Requete 2 : plomberie / sanitaire (plus large) -> plafonnee. Le scoring fera le tri
+    #             (la construction et la grosse plomberie sont ensuite ecartees).
+    sec_kw = [k for k in scoring.get("mots_cles_secondaires", []) if k.lower() != "entretien courant"]
+    if sec_kw:
+        where2 = _build_search_clause(sec_kw) + date_clause + geo
+        for t in _fetch_where(where2, max_records=1000):
+            if t.id not in seen:
+                seen.add(t.id)
+                tenders.append(t)
+
+    # Requete 3 : par NOM DE BAILLEUR CONNU (clients de l'ex-apporteur). Sans filtre
+    #             geographique : on veut TOUS leurs marches en cours, ou qu'ils soient.
+    bailleurs = scoring.get("bailleurs_cibles", [])
+    if bailleurs:
+        # On decoupe en paquets de 25 pour ne pas faire une clause demesuree
+        for i in range(0, len(bailleurs), 25):
+            lot = bailleurs[i:i + 25]
+            where3 = _build_search_clause(lot) + date_clause
+            try:
+                for t in _fetch_where(where3, max_records=600):
+                    if t.id not in seen:
+                        seen.add(t.id)
+                        tenders.append(t)
+            except Exception:
+                continue
 
     return tenders
