@@ -113,13 +113,15 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
 
     # 5) Acheteur = CLIENT DEJA CONNU (ex-apporteur) ? gros bonus +28
     client_connu = _found(scoring_cfg.get("bailleurs_cibles", []), buyer_n)
+    bailleur_social = _found(scoring_cfg.get("indices_bailleur", []), buyer_n)
     if client_connu:
         score += 28
         flags.append("★ client connu")
-    # 5b) Sinon, acheteur = bailleur social ? bonus unique +15
-    elif _found(scoring_cfg.get("indices_bailleur", []), buyer_n):
+    elif bailleur_social:
         score += 15
         flags.append("bailleur social")
+    # Acheteur identifie comme bailleur (sert a ne pas l'exclure comme "collectivite")
+    is_bailleur = bool(client_connu or bailleur_social)
 
     # 6) Type de marche favorable (accord-cadre / bons de commande) : +12
     if _found(scoring_cfg.get("types_favorables", []), type_n + " " + text):
@@ -138,6 +140,12 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
     )
 
     excluded = False
+
+    # 6b) Acheteur NON-BAILLEUR (mairie, ville, departement, region, hopital, ecole...)
+    #     -> exclu, sauf s'il est identifie comme bailleur social.
+    if not is_bailleur and _found(scoring_cfg.get("mots_cles_collectivites", []), buyer_n):
+        excluded = True
+        flags.append("non-bailleur (collectivite)")
 
     # 7a) Exclusion CONSTRUCTION / GROS OEUVRE (tu fais UNIQUEMENT de la renovation SDB).
     #     On ecarte SAUF si un vrai mot-cle salle de bain est present.

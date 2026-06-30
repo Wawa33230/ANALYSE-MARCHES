@@ -157,12 +157,18 @@ scoring:
     - logiouest
 
   # --- Indices "bailleur social" dans le nom de l'acheteur (bonus unique) ---
+  #  Sert aussi a PRESERVER un bailleur dont le nom contient un mot de collectivite
+  #  (ex: "Brest Metropole Habitat" garde grace a "habitat").
   indices_bailleur:
     - habitat
+    - habitations
     - office public
     - oph
+    - opac
+    - opdhlm
     - hlm
     - esh
+    - patrimoine
     - logement
     - logements
     - logis
@@ -176,6 +182,44 @@ scoring:
     - val de loire
     - france loire
     - logiouest
+
+  # --- EXCLUSION des ACHETEURS NON-BAILLEURS (collectivites, etc.) ---
+  #  Tu ne veux QUE des bailleurs sociaux. Si le nom de l'acheteur contient l'un de
+  #  ces mots ET n'est PAS identifie comme bailleur (ni client connu, ni indice
+  #  "habitat/oph/hlm/esh..."), le marche est ECARTE.
+  mots_cles_collectivites:
+    - mairie
+    - ville de
+    - ville d'
+    - commune de
+    - commune d'
+    - communaute de communes
+    - communaute d'agglomeration
+    - communaute urbaine
+    - communaute
+    - agglomeration
+    - metropole
+    - conseil departemental
+    - conseil regional
+    - conseil general
+    - departement de
+    - departement d'
+    - departemental
+    - region
+    - syndicat
+    - sivom
+    - sivu
+    - sdis
+    - prefecture
+    - ccas
+    - centre communal
+    - centre hospitalier
+    - hopital
+    - college
+    - lycee
+    - universite
+    - rectorat
+    - etablissement public foncier
 
   # --- Type de marche favorable (bonus unique) ---
   types_favorables:
