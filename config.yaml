@@ -1,0 +1,163 @@
+# ============================================================================
+#  CONFIGURATION - Outil de veille appels d'offres
+#  Metier : remplacement baignoire -> douche / accessibilite PMR
+#           pour bailleurs sociaux (pose de panneaux muraux, PAS de carrelage)
+# ----------------------------------------------------------------------------
+#  Tu peux modifier librement ce fichier (avec un simple Bloc-notes) puis
+#  relancer l'outil. Tout est commente pour t'y retrouver.
+# ============================================================================
+
+recherche:
+  jours_recents: 45          # On recupere les annonces publiees dans les N derniers jours
+  masquer_echus: true        # Cacher les marches dont la date limite est deja passee
+
+geographie:
+  perimetre: national        # "national" = toute la France. Sinon "departements".
+  departements: []           # Utilise seulement si perimetre = departements. Ex: ["45","18","44","49"]
+
+sources:
+  boamp: true                # Source officielle nationale (recommandee, gratuite)
+  ted: true                  # Marches europeens > seuils (gros accords-cadres)
+  plateformes: true          # Flux RSS/Atom des plateformes (voir section "plateformes")
+
+# ---------------------------------------------------------------------------
+#  PLATEFORMES (marches-publics.info / AWS, achatpublic.com, marches-securises...)
+#  Ces sites n'ont pas d'API publique fiable. La methode robuste et durable :
+#    1. Cree un compte (gratuit) sur la plateforme, ex: marches-publics.info
+#    2. Fais une recherche (mots-cles "plomberie accessibilite", etc.)
+#    3. Enregistre-la en ALERTE / RECHERCHE SAUVEGARDEE et recupere son flux RSS
+#    4. Colle l'URL du flux ci-dessous. L'outil l'agregera automatiquement.
+#  (Le guide README explique la marche a suivre en images.)
+# ---------------------------------------------------------------------------
+plateformes:
+  flux_rss: []
+    # - "https://www.marches-publics.info/...mon-alerte.rss"
+    # - "https://www.achatpublic.com/...flux.xml"
+
+# ===========================================================================
+#  LOGIQUE DE PERTINENCE  (le coeur de l'outil : ce qui classe les marches)
+# ===========================================================================
+scoring:
+
+  # --- Mots-cles CIBLE : coeur de ton metier (gros bonus) ---
+  mots_cles_prioritaires:
+    - baignoire
+    - baignoire en douche
+    - remplacement de baignoire
+    - accessibilite
+    - PMR
+    - personne a mobilite reduite
+    - maintien a domicile
+    - adaptation du logement
+    - adaptation salle de bain
+    - salle d'eau
+    - douche
+    - receveur
+    - receveur extra plat
+    - barre de maintien
+    - barre de relevage
+    - travaux d'accessibilite
+
+  # --- Mots-cles SECONDAIRES : contexte plomberie / sanitaire (bonus moyen) ---
+  mots_cles_secondaires:
+    - plomberie
+    - sanitaire
+    - salle de bain
+    - salle de bains
+    - lavabo
+    - entretien courant
+    - rehabilitation
+    - logement
+
+  # --- Ta SPECIFICITE : pose de panneaux muraux (bonus, te differencie) ---
+  mots_cles_panneaux:
+    - panneau mural
+    - panneaux muraux
+    - habillage mural
+    - dalle murale
+    - kinewall
+    - wedi
+    - sans carrelage
+
+  # --- Codes CPV pertinents : valeur = nombre de points accordes ---
+  cpv_cibles:
+    "45330000": 30   # Travaux de plomberie
+    "45332400": 30   # Travaux d'installation d'appareils sanitaires
+    "45211310": 25   # Salles de bains
+    "45454000": 15   # Travaux de rehabilitation
+    "45215000": 10   # Construction logements / sante
+    "50700000": 10   # Entretien d'installations de batiment
+
+  # --- Indices "bailleur social" dans le nom de l'acheteur (bonus unique) ---
+  indices_bailleur:
+    - habitat
+    - office public
+    - oph
+    - hlm
+    - esh
+    - logement
+    - logements
+    - logis
+    - immobiliere
+    - residences
+    - residence sociale
+    - foyer
+    - sem
+    - economie mixte
+    - toit
+    - val de loire
+    - france loire
+    - logiouest
+
+  # --- Type de marche favorable (bonus unique) ---
+  types_favorables:
+    - accord-cadre
+    - accord cadre
+    - bons de commande
+    - bon de commande
+    - multi-attributaires
+
+  # --- EXCLUSIONS : "grosse plomberie" / hors cible ---
+  #  Logique intelligente : ces mots N'EXCLUENT le marche QUE s'il n'y a
+  #  AUCUN signal "salle de bain / accessibilite". Un marche multi-lots
+  #  (ex: "electricite, plomberie, menuiseries") reste donc detecte.
+  mots_cles_exclus:
+    - chauffage
+    - chaudiere
+    - chaudieres
+    - reseau de chaleur
+    - chaufferie
+    - production d'eau chaude collective
+    - desembouage
+    - climatisation
+    - pompe a chaleur
+    - genie climatique
+    - vmc
+    - ventilation
+    - gaz
+    - fluides medicaux
+    - traitement d'eau
+    - station d'epuration
+    - assainissement
+    - espaces verts
+    - voirie
+    - toiture
+    - couverture
+    - etancheite
+
+  # --- Signal CARRELAGE (tu poses des panneaux, pas du carrelage) ---
+  #  Ne supprime pas le marche : il est seulement signale (drapeau) et
+  #  legerement retrograde si aucun mot-cle "panneau" n'est present.
+  mots_cles_carrelage:
+    - carrelage
+    - faience
+    - carreleur
+
+  # --- Seuils de categorisation (sur le score final, de 0 a 100) ---
+  seuil_prioritaire: 55      # >= 55  => CIBLE PRIORITAIRE (vert)
+  seuil_a_regarder: 28       # >= 28  => A REGARDER (orange) ; en dessous => HORS CIBLE (rouge)
+
+affichage:
+  ouvrir_navigateur: true
+  fichier_sortie: "output/tableau-de-bord.html"
+  garder_hors_cible: false   # true = afficher aussi les marches "hors cible" dans le tableau

@@ -1,0 +1,132 @@
+"""Connecteur BOAMP - Bulletin Officiel des Annonces des Marches Publics.
+
+Utilise l'API ouverte Opendatasoft v2.1 (gratuite, sans cle) :
+  https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records
+
+C'est la source principale : la quasi-totalite des marches formalises de bailleurs
+sociaux (accords-cadres, AO ouverts) y sont publies, y compris les marches du type
+"France Loire" (plomberie / travaux d'accessibilite).
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import date, timedelta
+
+from .base import http_get
+from ..models import Tender
+
+API = "https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records"
+AVIS_URL = "https://www.boamp.fr/pages/avis/?q=idweb:%22{idweb}%22"
+
+# Limite Opendatasoft : 100 enregistrements par appel, offset max 10000.
+PAGE_SIZE = 100
+
+
+def _build_search_clause(keywords: list[str]) -> str:
+    """Construit une clause ODSQL : search("kw1") or search("kw2") ..."""
+    parts = []
+    for kw in keywords:
+        kw = kw.replace('"', "")
+        parts.append(f'search("{kw}")')
+    return "(" + " or ".join(parts) + ")"
+
+
+def _extract_cpv(record: dict) -> list[str]:
+    """Tente d'extraire les codes CPV depuis differents champs possibles."""
+    codes: set[str] = set()
+    # Champ structure "donnees" (JSON) present sur certains avis
+    raw = record.get("donnees")
+    if raw:
+        try:
+            data = json.loads(raw) if isinstance(raw, str) else raw
+            blob = json.dumps(data)
+            import re
+
+            for m in re.findall(r"\b(45\d{6}|50\d{6}|71\d{6})\b", blob):
+                codes.add(m)
+        except Exception:
+            pass
+    # Champs eventuels plus directs
+    for key in ("code_cpv", "cpv", "code_cpv_facette"):
+        v = record.get(key)
+        if isinstance(v, str):
+            codes.add(v[:8])
+        elif isinstance(v, list):
+            for item in v:
+                codes.add(str(item)[:8])
+    return [c for c in codes if c.isdigit()]
+
+
+def _dept(record: dict) -> str:
+    v = record.get("code_departement")
+    if isinstance(v, list):
+        return ", ".join(str(x) for x in v if x)
+    return str(v) if v else ""
+
+
+def _first(record: dict, *keys, default=""):
+    for k in keys:
+        v = record.get(k)
+        if v:
+            return v
+    return default
+
+
+def fetch(config) -> list[Tender]:
+    scoring = config.scoring
+    keywords = (
+        scoring.get("mots_cles_prioritaires", [])
+        + scoring.get("mots_cles_secondaires", [])
+    )
+    # On enleve les mots trop generiques pour la requete reseau (on affinera au scoring)
+    keywords = [k for k in keywords if k.lower() not in ("logement",)]
+
+    jours = config.get("recherche.jours_recents", 45)
+    since = (date.today() - timedelta(days=int(jours))).isoformat()
+
+    where = _build_search_clause(keywords) + f' and dateparution >= "{since}"'
+
+    perimetre = config.get("geographie.perimetre", "national")
+    depts = config.get("geographie.departements", []) or []
+    if perimetre == "departements" and depts:
+        dept_clause = " or ".join(f'code_departement = "{d}"' for d in depts)
+        where += f" and ({dept_clause})"
+
+    tenders: list[Tender] = []
+    offset = 0
+    max_records = 1000  # garde-fou
+    while offset < max_records:
+        params = {
+            "where": where,
+            "limit": PAGE_SIZE,
+            "offset": offset,
+            "order_by": "dateparution desc",
+        }
+        resp = http_get(API, params=params)
+        payload = resp.json()
+        results = payload.get("results", [])
+        if not results:
+            break
+        for rec in results:
+            idweb = str(_first(rec, "idweb", "id", default=""))
+            tenders.append(
+                Tender(
+                    id=f"boamp:{idweb}",
+                    source="BOAMP",
+                    title=_first(rec, "objet", default=""),
+                    buyer=_first(rec, "nomacheteur", "nom_acheteur", default=""),
+                    department=_dept(rec),
+                    market_type=_first(rec, "type_marche", "type_marche_facette", "nature", default=""),
+                    cpv=_extract_cpv(rec),
+                    publication_date=str(_first(rec, "dateparution", default="") or "")[:10],
+                    deadline=str(_first(rec, "datelimitereponse", "datelimite", default="") or "")[:10],
+                    url=AVIS_URL.format(idweb=idweb) if idweb else "https://www.boamp.fr/",
+                    description=_first(rec, "descripteur_libelle", "famille_libelle", default=""),
+                )
+            )
+        if len(results) < PAGE_SIZE:
+            break
+        offset += PAGE_SIZE
+
+    return tenders
