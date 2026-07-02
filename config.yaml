@@ -184,8 +184,6 @@ scoring:
     - "h.l.m"
     - esh
     - patrimoine
-    - logement
-    - logements
     - logis
     - immobiliere
     - residences
@@ -193,8 +191,25 @@ scoring:
     - foyer
     - sem
     - economie mixte
-    - toit
-    - val de loire
+    - toit pour tous
+    - vilogia
+    - batigere
+    - neolia
+    - neotoa
+    - podeliha
+    - domofrance
+    - plurial
+    - seqens
+    - soliha
+    - erilia
+    - mesolia
+    - noalis
+    - creusalis
+    - ligeris
+    - domanys
+    - hamaris
+    - polygone
+    - ozanam
     - france loire
     - logiouest
 
@@ -317,8 +332,14 @@ scoring:
     - entretien du patrimoine
     - entretien des logements
     - entretien des batiments
+    - entretien-reparation
+    - entretien reparation
+    - maintenance
     - maintenance courante
+    - maintenance corrective
+    - maintenance preventive
     - maintenance multitechnique
+    - reparation
     - multiservices
     - multi-services
     - multitechnique
@@ -335,6 +356,13 @@ scoring:
     - carrelage
     - faience
     - carreleur
+
+  # --- Ne garder QUE les bailleurs sociaux ---
+  #  true  = un marche est ecarte si l'acheteur n'est PAS identifie comme bailleur
+  #          (ni client connu, ni indice habitat/oph/hlm/esh...). Elimine DRAC,
+  #          ministeres, CROUS, CHU, colleges, communes, regions, departements...
+  #  false = on garde tout (sauf collectivites listees plus haut).
+  uniquement_bailleurs: true
 
   # --- Seuils de categorisation (sur le score final, de 0 a 100) ---
   seuil_prioritaire: 55      # >= 55  => CIBLE PRIORITAIRE (vert)

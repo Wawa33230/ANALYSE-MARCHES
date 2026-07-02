@@ -56,7 +56,8 @@ LINK_RE = re.compile(
 
 
 def _clean(html: str) -> str:
-    return unescape(re.sub(r"<[^>]+>", " ", html or "")).replace("\xa0", " ").strip()
+    text = unescape(re.sub(r"<[^>]+>", " ", html or "")).replace("\xa0", " ")
+    return re.sub(r"\s+", " ", text).strip()  # aplatit retours a la ligne / espaces multiples
 
 
 def _abs(url: str) -> str:
@@ -98,11 +99,13 @@ def _parse(html: str) -> list[Tender]:
             objet = text[refm.end():]
         elif buyerm:
             objet = text[buyerm.end():]
-        for stop in ("Consulter l'avis", "Consulter", "Contacter", "Deposer", "Marche alloti", "DCE"):
+        for stop in ("Consulter l'avis", "Consulter", "Contacter", "Deposer", "DCE"):
             i = objet.find(stop)
             if i > 20:
                 objet = objet[:i]
-        objet = objet.strip(" -[]").strip()
+        # Retire le suffixe "[Marche alloti : N lots]" (avec ou sans accent)
+        objet = re.sub(r"\[\s*March[eé]\s+alloti.*?\]", "", objet, flags=re.IGNORECASE | re.DOTALL)
+        objet = re.sub(r"\s+", " ", objet).strip(" -[]").strip()
         if len(objet) < 12:
             continue
 

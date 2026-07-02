@@ -141,11 +141,19 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
 
     excluded = False
 
-    # 6b) Acheteur NON-BAILLEUR (mairie, ville, departement, region, hopital, ecole...)
-    #     -> exclu, sauf s'il est identifie comme bailleur social.
-    if not is_bailleur and _found(scoring_cfg.get("mots_cles_collectivites", []), buyer_n):
-        excluded = True
-        flags.append("non-bailleur (collectivite)")
+    # 6b) Filtrage par TYPE D'ACHETEUR : on ne veut que des bailleurs sociaux.
+    if not is_bailleur:
+        if _found(scoring_cfg.get("mots_cles_collectivites", []), buyer_n):
+            excluded = True
+            flags.append("non-bailleur (collectivite)")
+        elif scoring_cfg.get("uniquement_bailleurs", True):
+            if buyer_n.strip():
+                # acheteur identifie mais pas un bailleur (DRAC, ministere, CROUS, CHU...)
+                excluded = True
+                flags.append("non-bailleur")
+            else:
+                # acheteur non recupere : on garde mais on signale a verifier
+                flags.append("acheteur a verifier")
 
     # 7a) Exclusion CONSTRUCTION / GROS OEUVRE (tu fais UNIQUEMENT de la renovation SDB).
     #     On ecarte SAUF si un vrai mot-cle salle de bain est present.
