@@ -33,37 +33,41 @@ sources:
 #  NB : les URL ci-dessous sont des points de depart, ajustes lors du calibrage.
 # ---------------------------------------------------------------------------
 plateformes_web:
-  - nom: "maximilien.fr (IDF)"
-    slug: maximilien
-    url: "https://www.maximilien.fr/"
-    methode: GET
-    champ_motcle: "motcle"
-    champ_page: "page"
-    actif: true
-    calibre: false
-  - nom: "achatpublic.com"
-    slug: achatpublic
-    url: "https://www.achatpublic.com/sdm/ent/gen/ent_recherche.do"
-    methode: GET
-    champ_motcle: "keyword"
-    champ_page: "page"
-    actif: true
-    calibre: false
-  - nom: "marches-securises.fr"
-    slug: marches-securises
-    url: "https://www.marches-securises.fr/entreprise/"
-    methode: GET
-    champ_motcle: "recherche"
-    champ_page: "page"
-    actif: true
-    calibre: false
+  # e-marchespublics : parseur dedie (calibre). Champ de recherche "what".
   - nom: "e-marchespublics.com"
     slug: e-marchespublics
     url: "https://www.e-marchespublics.com/appel-offre"
     methode: GET
-    champ_motcle: "q"
+    champ_motcle: "what"
     champ_page: "page"
+    champs_fixes: {where: "all"}
+    parseur: emp
     actif: true
+    calibre: true
+
+  # achatpublic : vrai moteur trouve (POST). Non calibre -> genere la page de
+  # RESULTATS dans data/achatpublic-debug.html au prochain lancement (a m'envoyer).
+  - nom: "achatpublic.com"
+    slug: achatpublic
+    url: "https://www.achatpublic.com/sdm/ent2/gen/rechercheCsl.action"
+    methode: POST
+    champ_motcle: "searchCslBean.intitule"
+    champ_page: "page"
+    encodage: "ISO-8859-15"
+    parseur: cartes
+    actif: true
+    calibre: false
+
+  # Scraping abandonne (site JS / connexion refusee) -> utiliser leurs alertes RSS.
+  - nom: "maximilien.fr (IDF)"
+    slug: maximilien
+    url: "https://www.maximilien.fr/"
+    actif: false
+    calibre: false
+  - nom: "marches-securises.fr"
+    slug: marches-securises
+    url: "https://www.marches-securises.fr/entreprise/"
+    actif: false
     calibre: false
 
 # ---------------------------------------------------------------------------

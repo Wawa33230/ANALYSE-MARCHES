@@ -16,12 +16,51 @@ entree de config + un tour de calibrage.
 from __future__ import annotations
 
 import os
+import re
+from html import unescape
 
 import requests
 
 from .base import HEADERS, TIMEOUT
-from .marches_publics_info import _parse  # analyseur "par cartes" par defaut
+from .marches_publics_info import _parse  # analyseur "par cartes" par defaut (AWS)
 from ..models import Tender
+
+
+def _txt(html: str) -> str:
+    return re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]+>", " ", html or ""))).strip()
+
+
+# ---- Parseur dedie e-marchespublics.com (Dematis) : blocs <div class="box"> ----
+_EMP_BOX = re.compile(r'<div class="box">(.*?)(?=<div class="box">|<div class="pagination|<footer|$)', re.DOTALL)
+_EMP_OBJ = re.compile(r'class="texttruncate[^"]*"[^>]*>(.*?)</div>', re.DOTALL)
+_EMP_BUYER = re.compile(r'class="box-body-top">\s*<span>(.*?)</span>', re.DOTALL)
+_EMP_DL = re.compile(r"Date limite[^0-9]*(\d{2})/(\d{2})/(\d{4})", re.IGNORECASE | re.DOTALL)
+_EMP_URL = re.compile(r'href=["\']?(/appel-offre/[^\s"\'#>]+)', re.IGNORECASE)
+_EMP_CP = re.compile(r"\b(\d{5})\b")
+
+
+def _parse_emp(html: str) -> list[Tender]:
+    tenders: list[Tender] = []
+    for block in _EMP_BOX.findall(html or ""):
+        objm = _EMP_OBJ.search(block)
+        objet = _txt(objm.group(1)) if objm else ""
+        if len(objet) < 8:
+            continue
+        bm = _EMP_BUYER.search(block)
+        buyer = _txt(bm.group(1)) if bm else ""
+        dlm = _EMP_DL.search(block)
+        deadline = f"{dlm.group(3)}-{dlm.group(2)}-{dlm.group(1)}" if dlm else ""
+        um = _EMP_URL.search(block)
+        url = "https://www.e-marchespublics.com" + um.group(1).split("#")[0] if um else "https://www.e-marchespublics.com/appel-offre"
+        cpm = _EMP_CP.search(_txt(block))
+        dept = cpm.group(1)[:2] if cpm else ""
+        tenders.append(Tender(
+            id=f"emp:{url}", source="e-marchespublics.com", title=objet,
+            buyer=buyer, department=dept, market_type="Plateforme", deadline=deadline, url=url))
+    return tenders
+
+
+PARSEURS = {"cartes": _parse, "emp": _parse_emp}
 
 # Mots-cles metier envoyes dans le champ de recherche de chaque plateforme.
 QUERIES = [
@@ -33,7 +72,7 @@ QUERIES = [
 MAX_PAGES = 8
 
 
-def _raw(url: str, method: str, params: dict):
+def _raw(url: str, method: str, params: dict, encodage: str = ""):
     """Requete tolerante : renvoie le texte HTML meme si le statut est une erreur
     (utile pour capturer la page de diagnostic d'une plateforme non calibree)."""
     h = dict(HEADERS)
@@ -42,6 +81,8 @@ def _raw(url: str, method: str, params: dict):
         resp = requests.post(url, data=params, headers=h, timeout=TIMEOUT)
     else:
         resp = requests.get(url, params=params, headers=h, timeout=TIMEOUT)
+    if encodage:
+        resp.encoding = encodage
     return resp.text or ""
 
 
@@ -53,6 +94,8 @@ def _fetch_platform(p: dict) -> list[Tender]:
     kw_field = p.get("champ_motcle", "q")
     page_field = p.get("champ_page", "page")
     calibre = bool(p.get("calibre", False))
+    encodage = p.get("encodage", "")
+    parseur = PARSEURS.get(p.get("parseur", "cartes"), _parse)
     if not url:
         return []
 
@@ -70,15 +113,16 @@ def _fetch_platform(p: dict) -> list[Tender]:
             # champs supplementaires eventuels definis en config
             params.update(p.get("champs_fixes", {}) or {})
             try:
-                html = _raw(url, method, params)
+                html = _raw(url, method, params, encodage)
             except Exception as e:  # noqa: BLE001
                 print(f"    /!\\ {nom} ({q}) : {e}")
                 break
             if len(html) > len(debug_html):
                 debug_html = html
             new = 0
-            for t in _parse(html):
-                t.source = nom
+            for t in parseur(html):
+                if not t.source or t.source == "marches-publics.info (AWS)":
+                    t.source = nom
                 t.id = f"{slug}:{t.reference or t.url or t.title[:40]}"
                 if t.id not in seen:
                     seen.add(t.id)
