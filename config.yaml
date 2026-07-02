@@ -25,17 +25,30 @@ sources:
   plateformes: true          # Flux RSS/Atom des plateformes (voir section "plateformes")
 
 # ---------------------------------------------------------------------------
-#  PLATEFORMES (marches-publics.info / AWS, achatpublic.com, marches-securises...)
-#  Ces sites n'ont pas d'API publique fiable. La methode robuste et durable :
-#    1. Cree un compte (gratuit) sur la plateforme, ex: marches-publics.info
-#    2. Fais une recherche (mots-cles "plomberie accessibilite", etc.)
-#    3. Enregistre-la en ALERTE / RECHERCHE SAUVEGARDEE et recupere son flux RSS
-#    4. Colle l'URL du flux ci-dessous. L'outil l'agregera automatiquement.
-#  (Le guide README explique la marche a suivre en images.)
+#  AUTRES PLATEFORMES via FLUX RSS (methode universelle pour "toutes les sources")
+#  Chaque plateforme a sa propre techno : il n'existe PAS d'API unique. La methode
+#  robuste et durable pour couvrir N'IMPORTE QUELLE plateforme :
+#    1. Cree un compte (gratuit) sur la plateforme
+#    2. Fais une recherche (ex: "adaptation PMR", "plomberie accessibilite")
+#    3. Enregistre-la en ALERTE / RECHERCHE SAUVEGARDEE et recupere son URL de FLUX RSS
+#    4. Colle l'URL ci-dessous. L'outil l'agrege automatiquement (filtre + score compris).
+#
+#  Principales plateformes francaises a couvrir (cree une alerte RSS sur chacune) :
+#    - marches-publics.info (AWS)      -> deja couvert directement (source "aws")
+#    - maximilien.fr                    -> Ile-de-France (bailleurs franciliens ++)
+#    - achatpublic.com
+#    - marches-securises.fr
+#    - e-marchespublics.com (Dematis)
+#    - megalis.bretagne.bzh             -> Bretagne
+#    - PLACE (marches-publics.gouv.fr)  -> Etat
+#    - ternum-bfc.fr, ledauphine/atexo regionales, etc.
+#  (Beaucoup de marches sont AUSSI publies sur BOAMP/TED, deja couverts.)
 # ---------------------------------------------------------------------------
 plateformes:
   flux_rss: []
-    # - "https://www.marches-publics.info/...mon-alerte.rss"
+    # - "https://www.maximilien.fr/....rss"           # exemple Ile-de-France
+    # - "https://www.achatpublic.com/....xml"
+    # - "https://www.marches-securises.fr/....rss"
     # - "https://www.achatpublic.com/...flux.xml"
 
 # ===========================================================================

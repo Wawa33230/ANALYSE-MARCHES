@@ -34,9 +34,14 @@ QUERIES = [
     "salle de bains",
     "accessibilite",
     "adaptation",
+    "adaptation logement",
     "baignoire",
-    "mobilite reduite",
     "douche",
+    "PMR",
+    "mobilite reduite",
+    "handicap",
+    "perte d'autonomie",
+    "sanitaire",
 ]
 
 # Analyse par "cartes" : chaque annonce commence par "Publie le ..." sur le site AWS.
@@ -145,9 +150,14 @@ def _parse(html: str) -> list[Tender]:
     return tenders
 
 
-def _form_payload(query: str) -> dict:
+MAX_PAGES = 10  # garde-fou : au plus 10 pages de resultats par mot-cle
+
+
+def _form_payload(query: str, page: int = 1) -> dict:
     """Champs du formulaire de recherche AWS (POST /Annonces/lister).
-    IDE=EC -> annonces EN COURS (pas les expirees) ; IDN=X -> toutes natures."""
+    IDE=EC -> annonces EN COURS (pas les expirees) ; IDN=X -> toutes natures.
+    On envoie plusieurs noms de parametre de page (le serveur lit celui qu'il
+    reconnait, ignore les autres) pour paginer sans en connaitre le nom exact."""
     return {
         "IDE": "EC",
         "IDN": "X",
@@ -168,6 +178,11 @@ def _form_payload(query: str) -> dict:
         "dateExpiration": "",
         "annee": "X",
         "Rechercher": "Rechercher",
+        # parametres de pagination (candidats)
+        "page": page,
+        "NoPage": page,
+        "numPage": page,
+        "p": page,
     }
 
 
@@ -177,19 +192,26 @@ def fetch(config) -> list[Tender]:
     debug_html = ""
 
     for q in QUERIES:
-        try:
-            resp = http_post_form(LISTER_URL, _form_payload(q),
-                                  headers={"Referer": SEARCH_URL})
-            html = resp.text
-        except Exception as e:  # noqa: BLE001
-            print(f"    /!\\ AWS ({q}) : {e}")
-            continue
-        if html and len(html) > len(debug_html):
-            debug_html = html
-        for t in _parse(html):
-            if t.id not in seen:
-                seen.add(t.id)
-                tenders.append(t)
+        for page in range(1, MAX_PAGES + 1):
+            try:
+                resp = http_post_form(LISTER_URL, _form_payload(q, page),
+                                      headers={"Referer": SEARCH_URL})
+                html = resp.text
+            except Exception as e:  # noqa: BLE001
+                print(f"    /!\\ AWS ({q}, p{page}) : {e}")
+                break
+            if html and len(html) > len(debug_html):
+                debug_html = html
+            nouveaux = 0
+            for t in _parse(html):
+                if t.id not in seen:
+                    seen.add(t.id)
+                    tenders.append(t)
+                    nouveaux += 1
+            # Aucune nouvelle annonce sur cette page -> fin de pagination pour ce mot-cle
+            # (couvre aussi le cas ou le site ignore le parametre de page).
+            if nouveaux == 0:
+                break
 
     if not tenders:
         # On enregistre la page de resultats pour calibrage
