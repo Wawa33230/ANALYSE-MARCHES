@@ -22,7 +22,49 @@ sources:
   boamp: true                # Source officielle nationale (recommandee, gratuite)
   ted: true                  # Marches europeens > seuils (gros accords-cadres)
   aws: true                  # marches-publics.info / AWS-Achat (recherche publique)
+  plateformes_web: true      # Autres plateformes web (maximilien, achatpublic... voir "plateformes_web")
   plateformes: true          # Flux RSS/Atom des plateformes (voir section "plateformes")
+
+# ---------------------------------------------------------------------------
+#  PLATEFORMES WEB (scrapers dedies, ajoutees "une par une")
+#  Chaque plateforme non encore calibree (calibre: false) genere au 1er lancement
+#  un fichier data/<slug>-debug.html : envoie-le pour que je finalise son lecteur,
+#  puis on passe calibre: true. (maximilien = Ile-de-France, prioritaire.)
+#  NB : les URL ci-dessous sont des points de depart, ajustes lors du calibrage.
+# ---------------------------------------------------------------------------
+plateformes_web:
+  - nom: "maximilien.fr (IDF)"
+    slug: maximilien
+    url: "https://www.maximilien.fr/"
+    methode: GET
+    champ_motcle: "motcle"
+    champ_page: "page"
+    actif: true
+    calibre: false
+  - nom: "achatpublic.com"
+    slug: achatpublic
+    url: "https://www.achatpublic.com/sdm/ent/gen/ent_recherche.do"
+    methode: GET
+    champ_motcle: "keyword"
+    champ_page: "page"
+    actif: true
+    calibre: false
+  - nom: "marches-securises.fr"
+    slug: marches-securises
+    url: "https://www.marches-securises.fr/entreprise/"
+    methode: GET
+    champ_motcle: "recherche"
+    champ_page: "page"
+    actif: true
+    calibre: false
+  - nom: "e-marchespublics.com"
+    slug: e-marchespublics
+    url: "https://www.e-marchespublics.com/appel-offre"
+    methode: GET
+    champ_motcle: "q"
+    champ_page: "page"
+    actif: true
+    calibre: false
 
 # ---------------------------------------------------------------------------
 #  AUTRES PLATEFORMES via FLUX RSS (methode universelle pour "toutes les sources")

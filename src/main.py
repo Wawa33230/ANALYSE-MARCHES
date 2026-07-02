@@ -53,6 +53,8 @@ def collect(config: Config, demo: bool) -> list:
         tenders += _run_source("TED", config)
     if sources.get("aws"):
         tenders += _run_source("AWS", config)
+    if sources.get("plateformes_web"):
+        tenders += _run_source("plateformes_web", config)
     if sources.get("plateformes"):
         tenders += _run_source("plateformes", config)
 
@@ -68,6 +70,8 @@ def _run_source(name: str, config: Config) -> list:
             from .sources import ted as mod
         elif name == "AWS":
             from .sources import marches_publics_info as mod
+        elif name == "plateformes_web":
+            from .sources import plateformes_web as mod
         else:
             from .sources import plateformes as mod
         result = mod.fetch(config)
