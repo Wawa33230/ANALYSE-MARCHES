@@ -38,17 +38,24 @@ QUERIES = [
 # Noms de parametres possibles pour le champ "mots-cles" (on les tente tous)
 PARAM_CANDIDATES = ["texte", "motscles", "mots_cles", "q", "recherche", "keyword"]
 
-# Liens vers une consultation : on tente plusieurs motifs rencontres sur AWS
+# Analyse par "cartes" : chaque annonce commence par "Publie le ..." sur le site AWS.
+CARD_SPLIT = re.compile(r"Publi[ée]\s+le", re.IGNORECASE)
+PUB_RE = re.compile(r"Publi[ée]\s+le\s*:?\s*(\d{2})/(\d{2})/(\d{2,4})", re.IGNORECASE)
+DL_RE = re.compile(r"Date\s+limite\s*:?\s*(?:le\s+)?(\d{2})/(\d{2})/(\d{2,4})", re.IGNORECASE)
+REF_RE = re.compile(r"r[ée]f\.?\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-/_.]{3,})", re.IGNORECASE)
+HREF_RE = re.compile(r'href="([^"]+)"', re.IGNORECASE)
+# Nom d'acheteur souvent suivi d'un code entre parentheses, ex "OPAC SAVOIE (73024)"
+BUYER_RE = re.compile(r"([A-ZÉÈÀÂÎÔÛÇ][A-Za-zÉÈÀÂÎÔÛÇ'&\-\. ]{4,60})\s*\((\d{4,6})\)")
+
+# Fallback : anciens liens directs vers une consultation
 LINK_RE = re.compile(
-    r'<a[^>]+href="([^"]*(?:onsultation|onsulter|Detail|idMarche|aff_consultation|annonce)[^"]*)"[^>]*>(.*?)</a>',
+    r'<a[^>]+href="([^"]*(?:onsultation|onsulter|Detail|idMarche|annonce)[^"]*)"[^>]*>(.*?)</a>',
     re.IGNORECASE | re.DOTALL,
 )
-DATE_RE = re.compile(r"(\d{2})[/-](\d{2})[/-](\d{4})")
-REF_RE = re.compile(r"(?:r[ée]f[ée]rence|r[ée]f\.?|consultation)\s*[:\-]?\s*([A-Za-z0-9][\w\-/.]{2,})", re.IGNORECASE)
 
 
 def _clean(html: str) -> str:
-    return unescape(re.sub(r"<[^>]+>", " ", html or "")).strip()
+    return unescape(re.sub(r"<[^>]+>", " ", html or "")).replace("\xa0", " ").strip()
 
 
 def _abs(url: str) -> str:
@@ -57,31 +64,80 @@ def _abs(url: str) -> str:
     return BASE + ("" if url.startswith("/") else "/") + url
 
 
+def _iso(d, m, y) -> str:
+    y = ("20" + y) if len(y) == 2 else y
+    return f"{y}-{m}-{d}"
+
+
 def _parse(html: str) -> list[Tender]:
+    """Analyse la page de resultats AWS par 'cartes' (une par 'Publie le ...')."""
+    html = unescape(html or "")
     tenders: list[Tender] = []
     seen: set[str] = set()
-    for href, label in LINK_RE.findall(html):
-        title = _clean(label)
-        if len(title) < 12:  # ignore les liens trop courts (menus, boutons)
+
+    segments = CARD_SPLIT.split(html)
+    for seg in segments[1:]:
+        card_html = "Publie le" + seg
+        # On coupe la carte au debut de la suivante (deja fait par split) ; on borne
+        # aussi sur les actions de fin de carte pour ne pas deborder.
+        text = _clean(card_html)
+
+        dl = DL_RE.search(text)
+        deadline = _iso(*dl.groups()) if dl else ""
+        pub = PUB_RE.search(text)
+        publication = _iso(*pub.groups()) if pub else ""
+        refm = REF_RE.search(text)
+        reference = refm.group(1).rstrip(".,;:") if refm else ""
+        buyerm = BUYER_RE.search(text)
+        buyer = (buyerm.group(1).strip() + f" ({buyerm.group(2)})") if buyerm else ""
+
+        # Objet : ce qui suit la reference (ou l'acheteur), tronque avant les boutons
+        objet = ""
+        if refm:
+            objet = text[refm.end():]
+        elif buyerm:
+            objet = text[buyerm.end():]
+        for stop in ("Consulter l'avis", "Consulter", "Contacter", "Deposer", "Marche alloti", "DCE"):
+            i = objet.find(stop)
+            if i > 20:
+                objet = objet[:i]
+        objet = objet.strip(" -[]").strip()
+        if len(objet) < 12:
             continue
-        url = _abs(href)
-        if url in seen:
+
+        href = HREF_RE.search(card_html)
+        url = _abs(href.group(1)) if href else SEARCH_URL
+        key = reference or url or objet[:40]
+        if key in seen:
             continue
-        seen.add(url)
-        m = DATE_RE.search(title)
-        deadline = f"{m.group(3)}-{m.group(2)}-{m.group(1)}" if m else ""
-        rm = REF_RE.search(title)
+        seen.add(key)
+
         tenders.append(
             Tender(
-                id=f"aws:{url}",
+                id=f"aws:{key}",
                 source="marches-publics.info (AWS)",
-                title=title,
-                reference=rm.group(1).rstrip(".,;:") if rm else "",
+                title=objet,
+                reference=reference,
+                buyer=buyer,
                 market_type="Plateforme AWS",
+                publication_date=publication,
                 deadline=deadline,
                 url=url,
             )
         )
+
+    # Fallback ancien format (liens directs) si le decoupage par cartes n'a rien donne
+    if not tenders:
+        for href, label in LINK_RE.findall(html):
+            title = _clean(label)
+            if len(title) < 12:
+                continue
+            url = _abs(href)
+            if url in seen:
+                continue
+            seen.add(url)
+            tenders.append(Tender(id=f"aws:{url}", source="marches-publics.info (AWS)",
+                                  title=title, market_type="Plateforme AWS", url=url))
     return tenders
 
 
