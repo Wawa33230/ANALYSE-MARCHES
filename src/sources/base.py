@@ -31,3 +31,15 @@ def http_post_json(url: str, payload: dict, headers: dict | None = None):
     resp = requests.post(url, json=payload, headers=h, timeout=TIMEOUT)
     resp.raise_for_status()
     return resp
+
+
+def http_post_form(url: str, data: dict, headers: dict | None = None):
+    """POST d'un formulaire (application/x-www-form-urlencoded)."""
+    h = dict(HEADERS)
+    h["Accept"] = "text/html,application/xhtml+xml"
+    h["Content-Type"] = "application/x-www-form-urlencoded"
+    if headers:
+        h.update(headers)
+    resp = requests.post(url, data=data, headers=h, timeout=TIMEOUT)
+    resp.raise_for_status()
+    return resp

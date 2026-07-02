@@ -20,23 +20,24 @@ import os
 import re
 from html import unescape
 
-from .base import http_get
+from .base import http_post_form
 from ..models import Tender
 
-SEARCH_URL = "https://www.marches-publics.info/Annonces/rechercher"
 BASE = "https://www.marches-publics.info"
+SEARCH_URL = BASE + "/Annonces/rechercher"      # formulaire de recherche
+LISTER_URL = BASE + "/Annonces/lister"          # resultats (POST du formulaire)
 
-# Requetes ciblees sur ton metier (renovation de salle de bain)
+# Requetes ciblees sur ton metier (renovation de salle de bain), envoyees dans le
+# champ "mot-cle" (txtLibre) du formulaire AWS.
 QUERIES = [
-    "accessibilite plomberie",
-    "adaptation salle de bain",
-    "remplacement baignoire douche",
-    "douche PMR",
-    "plomberie sanitaire entretien",
+    "salle de bain",
+    "salle de bains",
+    "accessibilite",
+    "adaptation",
+    "baignoire",
+    "mobilite reduite",
+    "douche",
 ]
-
-# Noms de parametres possibles pour le champ "mots-cles" (on les tente tous)
-PARAM_CANDIDATES = ["texte", "motscles", "mots_cles", "q", "recherche", "keyword"]
 
 # Analyse par "cartes" : chaque annonce commence par "Publie le ..." sur le site AWS.
 CARD_SPLIT = re.compile(r"Publi[ée]\s+le", re.IGNORECASE)
@@ -141,46 +142,60 @@ def _parse(html: str) -> list[Tender]:
     return tenders
 
 
-def _try_fetch(query: str):
-    """Tente la requete avec differents noms de parametre ; renvoie (html, params_ok)."""
-    last_html = ""
-    for param in PARAM_CANDIDATES:
-        try:
-            resp = http_get(SEARCH_URL, params={param: query},
-                            headers={"Accept": "text/html,application/xhtml+xml"})
-            last_html = resp.text
-            if _parse(last_html):
-                return last_html, True
-        except Exception:
-            continue
-    return last_html, False
+def _form_payload(query: str) -> dict:
+    """Champs du formulaire de recherche AWS (POST /Annonces/lister).
+    IDE=EC -> annonces EN COURS (pas les expirees) ; IDN=X -> toutes natures."""
+    return {
+        "IDE": "EC",
+        "IDN": "X",
+        "listeCPV": "",
+        "IDP": "X",
+        "IDR": "X",
+        "txtLibre": query,
+        "txtLibreLieuExec": "",
+        "txtAcheteurNom": "",
+        "txtAcheteurSiret": "",
+        "txtTitulaireNom": "",
+        "txtTitulaireSiret": "",
+        "txtLibreAcheteur": "",
+        "txtLibreVille": "",
+        "txtLibreRef": "",
+        "txtLibreObjet": "",
+        "dateParution": "",
+        "dateExpiration": "",
+        "annee": "X",
+        "Rechercher": "Rechercher",
+    }
 
 
 def fetch(config) -> list[Tender]:
     tenders: list[Tender] = []
     seen: set[str] = set()
     debug_html = ""
-    any_parsed = False
 
     for q in QUERIES:
-        html, ok = _try_fetch(q)
-        if html and not debug_html:
+        try:
+            resp = http_post_form(LISTER_URL, _form_payload(q),
+                                  headers={"Referer": SEARCH_URL})
+            html = resp.text
+        except Exception as e:  # noqa: BLE001
+            print(f"    /!\\ AWS ({q}) : {e}")
+            continue
+        if html and len(html) > len(debug_html):
             debug_html = html
-        if ok:
-            any_parsed = True
-            for t in _parse(html):
-                if t.id not in seen:
-                    seen.add(t.id)
-                    tenders.append(t)
+        for t in _parse(html):
+            if t.id not in seen:
+                seen.add(t.id)
+                tenders.append(t)
 
-    if not any_parsed:
-        # On enregistre la page pour calibrage et on previent gentiment
+    if not tenders:
+        # On enregistre la page de resultats pour calibrage
         try:
             os.makedirs("data", exist_ok=True)
             with open(os.path.join("data", "aws-debug.html"), "w", encoding="utf-8") as f:
                 f.write(debug_html or "(aucune reponse recue de marches-publics.info)")
-            print("    (i) AWS : aucune annonce reconnue automatiquement. La page a ete")
-            print("        enregistree dans data\\aws-debug.html -> envoie ce fichier pour calibrage.")
+            print("    (i) AWS : aucune annonce reconnue. Page de resultats enregistree")
+            print("        dans data\\aws-debug.html -> envoie ce fichier pour calibrage.")
         except Exception:
             pass
 
