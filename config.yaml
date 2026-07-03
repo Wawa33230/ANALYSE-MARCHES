@@ -45,17 +45,17 @@ plateformes_web:
     actif: true
     calibre: true
 
-  # achatpublic : vrai moteur trouve (POST). Non calibre -> genere la page de
-  # RESULTATS dans data/achatpublic-debug.html au prochain lancement (a m'envoyer).
+  # achatpublic : resultats charges en JavaScript (AJAX) -> non lisibles en direct.
+  # Decision : couvert via alerte "Enregistrer ma recherche" (pas de scraping).
+  # (Endpoint conserve pour reference si on change d'avis un jour.)
   - nom: "achatpublic.com"
     slug: achatpublic
     url: "https://www.achatpublic.com/sdm/ent2/gen/rechercheCsl.action"
     methode: POST
     champ_motcle: "searchCslBean.intitule"
-    champ_page: "page"
     encodage: "ISO-8859-15"
     parseur: cartes
-    actif: true
+    actif: false
     calibre: false
 
   # Scraping abandonne (site JS / connexion refusee) -> utiliser leurs alertes RSS.
