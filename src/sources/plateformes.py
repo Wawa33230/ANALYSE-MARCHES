@@ -1,13 +1,21 @@
-"""Connecteur "plateformes" - lecteur de flux RSS/Atom.
+"""Connecteur "plateformes" - lecteur de flux RSS/Atom (methode universelle).
 
-Les plateformes de dematerialisation (marches-publics.info / AWS, achatpublic.com,
-marches-securises.fr, etc.) ne proposent pas d'API publique stable. La methode
-fiable et perenne consiste a s'appuyer sur les FLUX RSS de tes recherches
-sauvegardees / alertes (voir la section "plateformes" du config.yaml et le README).
+Les plateformes de dematerialisation (Ternum BFC, maximilien, achatpublic,
+marches-securises, e-marchespublics, megalis, PLACE, etc.) sont majoritairement
+rendues en JavaScript et/ou protegees : elles ne sont PAS scrapables en direct et
+n'offrent pas d'API commune. La seule methode fiable et perenne pour TOUTES les
+couvrir est de s'abonner au FLUX RSS de chaque recherche sauvegardee / alerte
+(voir la section "plateformes" du config.yaml et le guide PLATEFORMES-RSS.md).
 
-Ce connecteur lit chaque flux declare, en extrait les avis, et les normalise.
-Il est defensif : un flux invalide ou injoignable est simplement ignore (avec un
-avertissement en console), sans bloquer le reste de l'outil.
+Ce connecteur lit chaque flux declare, en extrait les avis (titre, lien, date
+limite si presente, acheteur si present) et les normalise. Il est defensif : un
+flux invalide ou injoignable est simplement ignore (avertissement en console),
+sans bloquer le reste de l'outil.
+
+Chaque entree de `plateformes.flux_rss` peut etre :
+  - une simple URL (chaine de caracteres), ou
+  - un objet { url: ..., nom: "Ternum BFC", acheteur: "..." } pour etiqueter la
+    source (et forcer un acheteur par defaut si le flux ne le fournit pas).
 """
 
 from __future__ import annotations
@@ -20,9 +28,14 @@ from .base import http_get
 from ..models import Tender
 
 DATE_RE = re.compile(r"(\d{4})[-/](\d{2})[-/](\d{2})")
-# Reference type "Reference : XXXX", "Ref. XXXX", "n° XXXX", "consultation XXXX"
 REF_RE = re.compile(
     r"(?:r[ée]f[ée]rence|r[ée]f\.?|n[°o]|consultation)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-_/.]{2,})",
+    re.IGNORECASE,
+)
+# Acheteur mentionne dans le texte : "Acheteur : X", "Entite : X", "Organisme : X"
+BUYER_RE = re.compile(
+    r"(?:acheteur|entit[ée]|organisme|pouvoir adjudicateur|donneur d'ordre|ma[îi]tre d'ouvrage)"
+    r"\s*[:\-]\s*([^\n\r|;]+)",
     re.IGNORECASE,
 )
 
@@ -35,24 +48,55 @@ def _strip_tags(html: str) -> str:
     return re.sub(r"<[^>]+>", " ", html or "").strip()
 
 
-def _guess_deadline(text: str) -> str:
-    """Cherche une date type AAAA-MM-JJ dans le texte de l'avis (best-effort)."""
+def _guess_date(text: str) -> str:
     m = DATE_RE.search(text or "")
+    return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else ""
+
+
+def _find(parent, localname):
+    """Trouve un enfant en ignorant le namespace XML."""
+    for child in parent:
+        if child.tag.endswith("}" + localname) or child.tag == localname:
+            return child
+    return None
+
+
+def _find_ns(parent, *localnames):
+    """Cherche le premier enfant correspondant a l'un des noms (ns-insensible)."""
+    for name in localnames:
+        el = _find(parent, name)
+        if el is not None:
+            return el
+    return None
+
+
+def _extract_buyer(it, is_atom: bool, desc: str, default: str = "") -> str:
+    # 1) champs structures : dc:creator, dc:publisher, author/name
+    creator = _find_ns(it, "creator", "publisher")
+    if creator is not None and _text(creator):
+        return _text(creator)
+    author = _find_ns(it, "author")
+    if author is not None:
+        name = _find_ns(author, "name")
+        if name is not None and _text(name):
+            return _text(name)
+        if _text(author):
+            return _text(author)
+    # 2) motif dans la description
+    m = BUYER_RE.search(desc or "")
     if m:
-        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
-    return ""
+        return m.group(1).strip().rstrip(".,;:")
+    return default
 
 
-def _parse_feed(content: bytes, feed_url: str) -> list[Tender]:
+def _parse_feed(content: bytes, feed_url: str, label: str = "", default_buyer: str = "") -> list[Tender]:
     tenders: list[Tender] = []
     root = ET.fromstring(content)
-    source_name = urlparse(feed_url).netloc or "plateforme"
+    source_name = label or (urlparse(feed_url).netloc or "plateforme")
 
-    # RSS 2.0 : channel/item ;  Atom : feed/entry
     items = root.findall(".//item")
     is_atom = False
     if not items:
-        # gestion des namespaces Atom
         items = [e for e in root.iter() if e.tag.endswith("}entry") or e.tag == "entry"]
         is_atom = True
 
@@ -70,18 +114,20 @@ def _parse_feed(content: bytes, feed_url: str) -> list[Tender]:
             pub = _text(it.find("pubDate"))
 
         desc = _strip_tags(desc)
-        deadline = _guess_deadline(desc) or _guess_deadline(title)
+        deadline = _guess_date(desc) or _guess_date(title)
         m = REF_RE.search(title) or REF_RE.search(desc)
         reference = m.group(1).rstrip(".,;:") if m else ""
+        buyer = _extract_buyer(it, is_atom, desc, default_buyer)
+
         tenders.append(
             Tender(
                 id=f"rss:{link or title}",
                 source=source_name,
                 title=title,
                 reference=reference,
-                buyer="",
-                market_type="Plateforme (flux)",
-                publication_date=_guess_deadline(pub),
+                buyer=buyer,
+                market_type="Plateforme (flux RSS)",
+                publication_date=_guess_date(pub),
                 deadline=deadline,
                 url=link,
                 description=desc,
@@ -90,26 +136,44 @@ def _parse_feed(content: bytes, feed_url: str) -> list[Tender]:
     return tenders
 
 
-def _find(parent, localname):
-    """Trouve un enfant en ignorant le namespace XML."""
-    for child in parent:
-        if child.tag.endswith("}" + localname) or child.tag == localname:
-            return child
-    return None
+def _normalize_feeds(raw) -> list[dict]:
+    """Accepte une liste d'URLs (str) ou d'objets {url, nom, acheteur}."""
+    feeds: list[dict] = []
+    for entry in raw or []:
+        if isinstance(entry, str):
+            url = entry.strip()
+            if url and not url.startswith("#"):
+                feeds.append({"url": url, "nom": "", "acheteur": ""})
+        elif isinstance(entry, dict) and entry.get("url"):
+            feeds.append(
+                {
+                    "url": str(entry["url"]).strip(),
+                    "nom": str(entry.get("nom", "") or ""),
+                    "acheteur": str(entry.get("acheteur", "") or ""),
+                }
+            )
+    return feeds
 
 
 def fetch(config) -> list[Tender]:
-    feeds = config.get("plateformes.flux_rss", []) or []
+    feeds = _normalize_feeds(config.get("plateformes.flux_rss", []))
     if not feeds:
         print("    (i) Aucun flux RSS de plateforme configure "
-              "(section 'plateformes' du config.yaml). Etape facultative.")
+              "(section 'plateformes' du config.yaml).")
+        print("        -> Voir PLATEFORMES-RSS.md pour activer Ternum BFC, maximilien, achatpublic...")
         return []
 
     tenders: list[Tender] = []
-    for url in feeds:
+    for f in feeds:
+        label = f["nom"] or urlparse(f["url"]).netloc
         try:
-            resp = http_get(url, headers={"Accept": "application/rss+xml, application/atom+xml, */*"})
-            tenders += _parse_feed(resp.content, url)
+            resp = http_get(
+                f["url"],
+                headers={"Accept": "application/rss+xml, application/atom+xml, application/xml, */*"},
+            )
+            found = _parse_feed(resp.content, f["url"], label=f["nom"], default_buyer=f["acheteur"])
+            print(f"      {label} : {len(found)} avis (flux RSS).")
+            tenders += found
         except Exception as e:  # noqa: BLE001
-            print(f"    /!\\ Flux ignore ({url}) : {e}")
+            print(f"    /!\\ Flux ignore ({label}) : {e}")
     return tenders

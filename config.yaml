@@ -90,12 +90,30 @@ plateformes_web:
 #    - ternum-bfc.fr, ledauphine/atexo regionales, etc.
 #  (Beaucoup de marches sont AUSSI publies sur BOAMP/TED, deja couverts.)
 # ---------------------------------------------------------------------------
+#  >>> COMMENT ACTIVER UNE PLATEFORME (mode d'emploi complet : PLATEFORMES-RSS.md) <<<
+#  1. Cree un compte GRATUIT sur la plateforme.
+#  2. Lance une recherche (ex : "adaptation PMR", "remplacement baignoire douche",
+#     "salle de bain", "plomberie accessibilite") + ta zone geographique.
+#  3. Clique sur l'icone RSS des resultats (ou "Enregistrer / M'alerter") et
+#     COPIE l'URL du flux RSS.
+#  4. Decommente la ligne correspondante ci-dessous et colle l'URL a la place de
+#     COLLE_ICI. L'outil agrege, filtre et score automatiquement (comme le BOAMP).
+#
+#  Chaque entree : { nom: "libelle affiche", url: "...", acheteur: "optionnel" }
 plateformes:
-  flux_rss: []
-    # - "https://www.maximilien.fr/....rss"           # exemple Ile-de-France
-    # - "https://www.achatpublic.com/....xml"
-    # - "https://www.marches-securises.fr/....rss"
-    # - "https://www.achatpublic.com/...flux.xml"
+  flux_rss:
+    # --- Plateformes regionales (moteur Atexo/MPE - RSS public possible) ---
+    # - { nom: "Ternum BFC (Bourgogne-Franche-Comte)", url: "COLLE_ICI" }
+    # - { nom: "Maximilien (Ile-de-France)",           url: "COLLE_ICI" }
+    # - { nom: "Megalis Bretagne",                     url: "COLLE_ICI" }
+    # - { nom: "PLACE - Etat (marches-publics.gouv.fr)", url: "COLLE_ICI" }
+    # --- Plateformes nationales / editeurs prives ---
+    # - { nom: "achatpublic.com",        url: "COLLE_ICI" }
+    # - { nom: "marches-securises.fr",   url: "COLLE_ICI" }
+    # - { nom: "e-marchespublics (Dematis)", url: "COLLE_ICI" }
+    # - { nom: "marches-publics.info (AWS)", url: "COLLE_ICI" }
+    # --- Tu peux ajouter autant de flux que tu veux (autres regions, JAL, etc.) ---
+    # - { nom: "Autre plateforme",       url: "COLLE_ICI" }
 
 # ===========================================================================
 #  LOGIQUE DE PERTINENCE  (le coeur de l'outil : ce qui classe les marches)
