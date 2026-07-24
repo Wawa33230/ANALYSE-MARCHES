@@ -31,26 +31,33 @@ CATEGORY_LABEL = {
 # --------------------------------------------------------------------------
 #  Recuperation du mot de passe (jamais en clair dans le depot)
 # --------------------------------------------------------------------------
+def _norm_pwd(val: str) -> str:
+    """Un mot de passe d'application Google est affiche par blocs de 4 (avec des
+    espaces) mais ne contient aucun espace : on retire tout blanc (espaces, sauts
+    de ligne) pour tolerer un collage "abcd efgh ijkl mnop"."""
+    return "".join((val or "").split())
+
+
 def _resolve_password(config) -> str | None:
     env_name = config.get("email.mot_de_passe_env", "VEILLE_SMTP_PASSWORD")
     if env_name:
-        val = os.environ.get(env_name)
-        if val and val.strip():
-            return val.strip()
+        val = _norm_pwd(os.environ.get(env_name, ""))
+        if val:
+            return val
 
     fichier = config.get("email.mot_de_passe_fichier", "motdepasse-mail.txt")
     if fichier and os.path.exists(fichier):
         try:
             with open(fichier, "r", encoding="utf-8") as f:
-                val = f.read().strip()
+                val = _norm_pwd(f.read())
             if val:
                 return val
         except Exception:
             pass
 
-    inline = config.get("email.mot_de_passe", "")
-    if inline and str(inline).strip() and str(inline).strip().upper() != "COLLE_ICI":
-        return str(inline).strip()
+    inline = _norm_pwd(str(config.get("email.mot_de_passe", "")))
+    if inline and inline.upper() != "COLLE_ICI":
+        return inline
 
     return None
 

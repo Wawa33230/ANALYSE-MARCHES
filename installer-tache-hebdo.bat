@@ -4,6 +4,7 @@ rem  INSTALLE la tache planifiee Windows "VeilleAO-Hebdo"
 rem  -> lance la veille TOUS LES LUNDIS a 08:00 et envoie le mail.
 rem  Double-clique simplement sur ce fichier (une seule fois).
 rem ============================================================
+setlocal EnableDelayedExpansion
 chcp 65001 >nul
 cd /d "%~dp0"
 title Installation de la veille hebdomadaire
@@ -17,6 +18,8 @@ echo et t'enverra un e-mail avec les consultations interessantes.
 echo.
 
 rem --- 1) Mot de passe d'application Gmail (stocke en local, jamais sur GitHub) ---
+rem  NB : expansion differee (!MDP!) obligatoire, sinon la variable saisie dans un
+rem       bloc ( ) est lue AVANT la saisie (bug classique des .bat Windows).
 if exist "motdepasse-mail.txt" (
   echo [OK] Un mot de passe d'application est deja enregistre ^(motdepasse-mail.txt^).
   echo      Pour le changer, supprime ce fichier puis relance cet installateur.
@@ -24,10 +27,12 @@ if exist "motdepasse-mail.txt" (
   echo Pour envoyer l'e-mail, il faut un "mot de passe d'application" Gmail
   echo ^(16 caracteres^). Procedure detaillee : VEILLE-AUTOMATIQUE-HEBDO.md
   echo.
-  set /p MDP="Colle ici le mot de passe d'application (ou laisse vide pour plus tard) : "
-  if not "%MDP%"=="" (
-    > "motdepasse-mail.txt" echo %MDP%
-    echo [OK] Mot de passe enregistre dans motdepasse-mail.txt ^(ce fichier reste sur ton PC^).
+  set /p "MDP=Colle ici le mot de passe d'application (ou laisse vide pour plus tard) : "
+  if not "!MDP!"=="" (
+    rem  On enleve les espaces eventuels du code (Google l'affiche par blocs de 4).
+    set "MDP=!MDP: =!"
+    > "motdepasse-mail.txt" echo !MDP!
+    echo [OK] Mot de passe enregistre dans motdepasse-mail.txt ^(reste sur ton PC^).
   ) else (
     echo [i] Aucun mot de passe saisi : cree le fichier motdepasse-mail.txt plus tard.
   )
