@@ -149,34 +149,20 @@ def _extract_action(subject: str, html: str, text: str, sender: str) -> dict:
     }
 
 
-def _handle_actions(config, actions: list) -> None:
-    """Envoie un e-mail 'action a realiser' pour les NOUVELLES notifications
-    (celles jamais signalees), avec memoire dans data/actions-notifiees.json."""
-    if not actions or not config.get("mail_alertes.email_actions", True):
-        return
-    import json
-    import os
-    os.makedirs("data", exist_ok=True)
-    path = os.path.join("data", "actions-notifiees.json")
-    seen: set = set()
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                seen = set(json.load(f))
-        except Exception:
-            seen = set()
-    nouvelles = [a for a in actions if a.get("_key") not in seen]
-    if not nouvelles:
-        print(f"      actions : {len(actions)} notification(s), aucune nouvelle a signaler.")
-        return
-    from ..notify import send_actions
-    if send_actions(config, nouvelles):
-        seen |= {a.get("_key") for a in nouvelles if a.get("_key")}
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(sorted(seen), f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+def _gmail_link(message_id: str) -> str:
+    """Lien direct vers l'e-mail d'origine dans Gmail (recherche par Message-ID).
+    Permet de l'ouvrir en un clic pour le traiter puis le marquer d'une etoile."""
+    mid = (message_id or "").strip().strip("<>")
+    if not mid:
+        return ""
+    from urllib.parse import quote
+    return "https://mail.google.com/mail/u/0/#search/rfc822msgid%3A" + quote(mid, safe="")
+
+
+# Actions "a realiser" collectees au dernier passage (lues par main.py pour l'envoi
+# de l'e-mail de rappel). Une action marquee d'une ETOILE dans Gmail est consideree
+# comme traitee et n'est plus listee.
+PENDING_ACTIONS: list = []
 
 # Indices qu'un lien pointe vers une consultation (et pas vers un pied de page).
 LINK_HINTS = (
@@ -468,10 +454,12 @@ def fetch(config) -> list[Tender]:
 
         lus = 0
         actions: list[dict] = []
+        traitees = 0
         for num in ids:
-            typ, msgdata = M.fetch(num, "(RFC822)")
+            typ, msgdata = M.fetch(num, "(FLAGS RFC822)")
             if typ != "OK" or not msgdata or not msgdata[0]:
                 continue
+            flags_raw = msgdata[0][0] or b""   # contient les FLAGS (dont \\Flagged = etoile)
             raw = msgdata[0][1]
             msg = email.message_from_bytes(raw)
             sender = _decode_hdr(msg.get("From", ""))
@@ -485,8 +473,12 @@ def fetch(config) -> list[Tender]:
 
             # Notification sur une consultation en cours (deja engage) ?
             if _classify(subject, (text or "") + " " + _strip_tags(html or "")) == "action":
+                # "Case cochee" = e-mail ETOILE dans Gmail -> traite, on ne le rappelle plus.
+                if b"\\Flagged" in flags_raw:
+                    traitees += 1
+                    continue
                 act = _extract_action(subject, html, text, sender)
-                act["_key"] = msg.get("Message-ID") or f"{sender}|{subject}"
+                act["mail_url"] = _gmail_link(msg.get("Message-ID", ""))
                 actions.append(act)
                 continue  # -> ne PAS remonter comme nouveau marche
 
@@ -500,9 +492,10 @@ def fetch(config) -> list[Tender]:
         except Exception:
             pass
         M.logout()
-        print(f"      alertes e-mail : {lus} e-mail(s) lus, {len(tenders)} consultation(s) extraite(s), "
-              f"{len(actions)} notification(s) d'action.")
-        _handle_actions(config, actions)
+        print(f"      alertes e-mail : {lus} e-mail(s) lus, {len(tenders)} consultation(s), "
+              f"{len(actions)} action(s) a faire, {traitees} traitee(s) (etoile).")
+        PENDING_ACTIONS.clear()
+        PENDING_ACTIONS.extend(actions)
     except imaplib.IMAP4.error as e:
         print(f"    /!\\ Alertes e-mail : connexion/lecture IMAP impossible ({e}).")
         print("        Verifie le mot de passe d'application et que l'IMAP est active dans Gmail.")

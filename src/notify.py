@@ -291,15 +291,24 @@ def _action_row(a: dict) -> str:
     ref = _esc(a.get("reference", "") or "")
     ref_html = f' &middot; <span style="font-family:Consolas,monospace;font-size:11px;color:#1f4e79;">Ref {ref}</span>' if ref else ""
     url = a.get("url", "") or ""
-    lien = (f'<a href="{_esc(url)}" style="color:#1f4e79;font-weight:600;text-decoration:none;">Ouvrir la consultation &#8599;</a>'
-            if url else "")
+    mail_url = a.get("mail_url", "") or ""
+    liens = []
+    if mail_url:
+        liens.append(
+            f'<a href="{_esc(mail_url)}" style="display:inline-block;background:#8a1c0a;color:#fff;'
+            f'text-decoration:none;font-weight:700;font-size:12px;padding:6px 10px;border-radius:6px;">'
+            f'&#9993; Ouvrir l\'e-mail &amp; marquer &#9733;</a>'
+        )
+    if url:
+        liens.append(f'<a href="{_esc(url)}" style="color:#1f4e79;font-weight:600;text-decoration:none;font-size:12px;">Voir la consultation &#8599;</a>')
+    liens_html = " &nbsp; ".join(liens)
     return f"""
     <tr>
       <td style="padding:12px 10px;border-bottom:1px solid #eef1f4;vertical-align:top;">
         <div style="font-weight:700;color:#8a1c0a;font-size:13px;text-transform:uppercase;letter-spacing:.3px;">{_esc(a.get('nature','Action'))}</div>
         <div style="font-weight:600;color:#13202e;font-size:14px;margin-top:3px;">{_esc(a.get('title',''))}</div>
         <div style="color:#566;font-size:12px;margin-top:2px;">{_esc(a.get('buyer','') or '-')}{ref_html} &middot; {_esc(a.get('platform',''))}</div>
-        <div style="margin-top:6px;">{lien}</div>
+        <div style="margin-top:8px;">{liens_html}</div>
       </td>
       <td style="padding:12px 10px;border-bottom:1px solid #eef1f4;vertical-align:top;white-space:nowrap;text-align:right;">{dl_html}</td>
     </tr>"""
@@ -322,6 +331,11 @@ def _build_actions_html(actions: list) -> str:
       (demande de complement, question/reponse, changement de date, document a retirer...).
       Ces consultations ne sont volontairement <b>pas</b> remontees comme nouveaux marches.
     </p>
+    <div style="background:#fef1d1;border:1px solid #f0d488;border-radius:8px;padding:10px 14px;margin:0 4px 14px;font-size:13px;color:#6b4e00;line-height:1.5;">
+      &#9733; <b>Pour retirer une action des prochains rappels :</b> clique sur
+      &laquo;&nbsp;Ouvrir l'e-mail&nbsp;&raquo;, puis sur l'<b>etoile</b> de l'e-mail dans Gmail.
+      Tant qu'un e-mail n'est pas etoile, son action revient dans le rappel hebdomadaire.
+    </div>
     <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;">{rows}</table>
     <p style="color:#889;font-size:12px;margin-top:22px;padding:0 4px;line-height:1.5;">
       Verifie toujours le detail et l'echeance exacte directement sur la plateforme via le lien.

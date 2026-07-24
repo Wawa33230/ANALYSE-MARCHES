@@ -189,10 +189,18 @@ L'outil distingue automatiquement :
    question/réponse, changement de date limite, document à retirer…)
    → **ne remonte PAS** comme nouveau marché. À la place, tu reçois un e-mail
    **« Actions à réaliser »** sur ta boîte principale, avec la nature de l'action,
-   la consultation, l'échéance et le lien direct.
+   la consultation, l'échéance et **deux liens** : « Ouvrir l'e-mail » (vers le mail
+   d'origine dans Gmail) et « Voir la consultation ».
 
-Chaque notification d'action n'est signalée **qu'une seule fois** (mémoire dans
-`data/actions-notifiees.json`), pour ne pas te renvoyer le même rappel chaque semaine.
+### La « case à cocher » = l'étoile ⭐ Gmail
+L'e-mail « Actions à réaliser » est un **rappel hebdomadaire des actions non traitées** :
+- tant qu'une action n'est **pas faite**, elle **revient** dans le rappel chaque semaine ;
+- quand tu l'as traitée, ouvre l'e-mail d'origine (bouton du rappel) et clique sur
+  l'**étoile ⭐** dans Gmail → l'outil la considère **traitée** et **ne la remet plus**.
+
+C'est une case à cocher « native » : aucune manip technique, juste l'étoile Gmail.
+(Astuce : les actions ne sont lues que sur les `jours_recents` derniers jours ; une
+notification non étoilée cesse d'être rappelée passé cette fenêtre.)
 
 Réglages (`config.yaml`, section `mail_alertes:`) :
 | Réglage | Rôle |

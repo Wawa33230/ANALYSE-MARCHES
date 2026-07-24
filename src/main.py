@@ -149,6 +149,15 @@ def main(argv=None):
     if args.email or config.get("email.envoyer_recap", False):
         print(">> Envoi du recapitulatif par e-mail ...")
         notify.send_recap(config, tenders, new_ids, dashboard_path=path)
+        # Rappel des actions a realiser (notifications de consultations en cours,
+        # non encore marquees d'une etoile dans Gmail).
+        if config.get("mail_alertes.email_actions", True):
+            try:
+                from .sources import mail_alertes as _ma
+                if getattr(_ma, "PENDING_ACTIONS", None):
+                    notify.send_actions(config, list(_ma.PENDING_ACTIONS))
+            except Exception as e:  # noqa: BLE001
+                print(f"   /!\\ Rappel d'actions non envoye : {e}")
 
     if config.get("affichage.ouvrir_navigateur", True) and not args.no_open and not args.email:
         try:
