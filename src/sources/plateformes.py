@@ -28,14 +28,22 @@ from .base import http_get
 from ..models import Tender
 
 DATE_RE = re.compile(r"(\d{4})[-/](\d{2})[-/](\d{2})")
+# Reference du marche. Le \b initial/final evite les faux positifs comme le "no"
+# a l'interieur de "baignoire" (n[°o] doit etre un mot isole, pas une sous-chaine).
 REF_RE = re.compile(
-    r"(?:r[ée]f[ée]rence|r[ée]f\.?|n[°o]|consultation)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-_/.]{2,})",
+    r"\b(?:r[ée]f[ée]rence|r[ée]f\.|n[°o]|consultation)\b\s*[:#\-]?\s*"
+    r"([A-Za-z0-9][A-Za-z0-9\-_/.]{2,})",
     re.IGNORECASE,
 )
-# Acheteur mentionne dans le texte : "Acheteur : X", "Entite : X", "Organisme : X"
+# Acheteur mentionne dans le texte : "Acheteur : X", "Entite : X"... La capture
+# non-gourmande s'arrete au 1er separateur (" - ", "|", ";", double espace) ou a
+# une etiquette de champ suivante (date limite, reference...), pour ne pas deborder
+# sur l'avis suivant quand tout le texte est sur une seule ligne.
 BUYER_RE = re.compile(
     r"(?:acheteur|entit[ée]|organisme|pouvoir adjudicateur|donneur d'ordre|ma[îi]tre d'ouvrage)"
-    r"\s*[:\-]\s*([^\n\r|;]+)",
+    r"\s*[:\-]\s*([^\n\r|;]+?)"
+    r"(?=\s+-\s|\s{2,}|[|;]|$|\n|\r|\s*date\s+limite|\s*r[ée]f[ée]rence|\s*r[ée]f\.|"
+    r"\s*consultation\b|\s*type\b|\s*proc[ée]dure\b)",
     re.IGNORECASE,
 )
 

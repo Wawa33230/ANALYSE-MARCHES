@@ -59,6 +59,8 @@ def collect(config: Config, demo: bool) -> list:
         tenders += _run_source("plateformes_web", config)
     if sources.get("plateformes"):
         tenders += _run_source("plateformes", config)
+    if sources.get("mail_alertes"):
+        tenders += _run_source("mail_alertes", config)
 
     return tenders
 
@@ -74,6 +76,8 @@ def _run_source(name: str, config: Config) -> list:
             from .sources import marches_publics_info as mod
         elif name == "plateformes_web":
             from .sources import plateformes_web as mod
+        elif name == "mail_alertes":
+            from .sources import mail_alertes as mod
         else:
             from .sources import plateformes as mod
         result = mod.fetch(config)

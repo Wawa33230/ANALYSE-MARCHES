@@ -24,6 +24,9 @@ sources:
   aws: true                  # marches-publics.info / AWS-Achat (recherche publique)
   plateformes_web: true      # Autres plateformes web (maximilien, achatpublic... voir "plateformes_web")
   plateformes: true          # Flux RSS/Atom des plateformes (voir section "plateformes")
+  mail_alertes: true         # Lit les ALERTES E-MAIL des plateformes dans ta boite Gmail
+                             #  (Ternum BFC, achatpublic, maximilien... qui n'ont pas de RSS).
+                             #  Voir section "mail_alertes" plus bas + VEILLE-AUTOMATIQUE-HEBDO.md
 
 # ---------------------------------------------------------------------------
 #  PLATEFORMES WEB (scrapers dedies, ajoutees "une par une")
@@ -473,3 +476,30 @@ email:
   joindre_tableau: true                # joindre le tableau de bord HTML complet au mail
   envoyer_si_vide: true                # envoyer meme s'il n'y a aucune nouveaute cette semaine
   objet_prefixe: "Veille AO"
+
+# ===========================================================================
+#  ALERTES E-MAIL DES PLATEFORMES  (Ternum BFC, achatpublic, maximilien...)
+#  La plupart des plateformes n'ont PLUS de flux RSS : elles envoient des
+#  ALERTES E-MAIL sur recherche sauvegardee. L'outil lit ta boite Gmail (IMAP,
+#  en lecture seule, avec le MEME mot de passe d'application que l'envoi) et
+#  transforme ces alertes en consultations (filtrees + scorees comme le reste).
+#  Mode d'emploi : VEILLE-AUTOMATIQUE-HEBDO.md (section "Alertes plateformes").
+# ===========================================================================
+mail_alertes:
+  imap_hote: "imap.gmail.com"
+  imap_port: 993
+  compte: ""                 # vide = utiliser email.expediteur ; sinon l'adresse Gmail qui RECOIT les alertes
+  dossier: "INBOX"           # "INBOX", ou un libelle Gmail dedie (ex "Alertes-AO") si tu ranges les alertes
+  jours_recents: 14          # ne lire que les alertes des N derniers jours
+  seulement_non_lus: false   # true = ne lire que les e-mails non lus
+  # On ne lit QUE les e-mails venant de ces expediteurs (securite anti-bruit).
+  # Ajoute/retire selon les plateformes ou tu crees des alertes.
+  expediteurs:
+    - ternum-bfc.fr
+    - achatpublic.com
+    - maximilien.fr
+    - marches-securises.fr
+    - e-marchespublics.com
+    - megalis.bretagne.bzh
+    - marches-publics.gouv.fr
+    - atexo
