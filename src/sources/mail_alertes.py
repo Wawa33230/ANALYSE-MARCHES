@@ -79,6 +79,105 @@ def _guess_deadline(text: str) -> str:
             return d
     return _to_iso(text)
 
+
+# --- Classification : nouvelle OPPORTUNITE vs NOTIFICATION d'action -----------
+# Signaux d'une nouvelle consultation issue d'une recherche sauvegardee.
+NEW_RE = re.compile(
+    r"nouvelle[s]?\s+consultation|correspond[a-z]*\s+[àa]\s+votre\s+recherche|"
+    r"recherche\s+sauvegard|nouvel(?:le)?\s+avis|nouveaux\s+avis|votre\s+alerte|"
+    r"r[ée]sultats?\s+de\s+votre\s+recherche|nouvelle\s+annonce",
+    re.I)
+# Signaux d'une notification sur une consultation ou l'on est DEJA engage
+# (elle demande souvent une action de ta part).
+ACTION_RE = re.compile(
+    r"demande\s+de\s+compl[ée]ment|r[ée]ponse\s+attendue|habilitation\s+[àa]\s+retirer|"
+    r"questions?\s*/\s*r[ée]ponses?|question[-\s]r[ée]ponse|modification\s+de\s+la\s+date|"
+    r"report\s+de\s+la\s+date|nouvelle\s+date\s+limite|message\s+de\s+l.?acheteur|"
+    r"invitation\s+[àa]|n[ée]gociation|r[ée]gularisation|pi[èe]ce[s]?\s+manquante|"
+    r"accus[ée]\s+de\s+r[ée]ception|avenant|rectificatif|notification\s+de\s+rejet|"
+    r"attribution|infructueux|retir[ée]?\s+.{0,20}document|d[ée]p[ôo]t\s+de\s+(?:votre\s+)?r[ée]ponse",
+    re.I)
+
+# Sujet achatpublic : "[ACHETEUR] Consultation REF / <nature de l'action>"
+SUBJ_AP = re.compile(r"\[([^\]]+)\]\s*Consultation\s+([^/]+?)\s*/\s*(.+)", re.I)
+# Echeance d'une ACTION : "reponse attendue avant le 24/07/2026", "avant le ...".
+ACTION_DEADLINE_RE = re.compile(
+    r"(?:r[ée]ponse\s+attendue|avant\s+le|au\s+plus\s+tard\s+le|"
+    r"date\s+limite[^0-9]{0,30})[^0-9]{0,15}"
+    r"(\d{1,2}[/.]\d{1,2}[/.]\d{4}|\d{4}[-/]\d{2}[-/]\d{2})",
+    re.I)
+
+
+def _classify(subject: str, body: str) -> str:
+    """'opportunity' (nouveau marche a remonter) ou 'action' (notification sur une
+    consultation en cours). Par defaut on remonte (opportunity), sauf signal d'action."""
+    blob = f"{subject or ''} {body or ''}"
+    if NEW_RE.search(blob):
+        return "opportunity"
+    if ACTION_RE.search(blob):
+        return "action"
+    return "opportunity"
+
+
+def _extract_action(subject: str, html: str, text: str, sender: str) -> dict:
+    body_text = _strip_tags(html or "") or (text or "")
+    buyer = reference = nature = title = ""
+    ms = SUBJ_AP.search(subject or "")
+    if ms:
+        buyer, reference, nature = ms.group(1).strip(), ms.group(2).strip(), ms.group(3).strip()
+    else:
+        nature = (subject or "").strip()
+    mc = CONSULT_RE.search(body_text)
+    if mc:
+        title = re.sub(r"\s+", " ", mc.group(1)).strip(" \"'«»“”")
+        reference = reference or mc.group(2).strip()
+    if not buyer:
+        mb = PAR_RE.search(body_text)
+        if mb:
+            buyer = mb.group(1).strip().rstrip(".,;:")
+    md = ACTION_DEADLINE_RE.search(body_text)
+    action_deadline = _to_iso(md.group(1)) if md else ""
+    url = _pick_consultation_url(_all_links(html or ""))
+    return {
+        "platform": _label_for(sender, urlparse(url).netloc if url else ""),
+        "buyer": buyer,
+        "reference": reference,
+        "title": title or nature,
+        "nature": nature,
+        "action_deadline": action_deadline,
+        "url": url,
+    }
+
+
+def _handle_actions(config, actions: list) -> None:
+    """Envoie un e-mail 'action a realiser' pour les NOUVELLES notifications
+    (celles jamais signalees), avec memoire dans data/actions-notifiees.json."""
+    if not actions or not config.get("mail_alertes.email_actions", True):
+        return
+    import json
+    import os
+    os.makedirs("data", exist_ok=True)
+    path = os.path.join("data", "actions-notifiees.json")
+    seen: set = set()
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                seen = set(json.load(f))
+        except Exception:
+            seen = set()
+    nouvelles = [a for a in actions if a.get("_key") not in seen]
+    if not nouvelles:
+        print(f"      actions : {len(actions)} notification(s), aucune nouvelle a signaler.")
+        return
+    from ..notify import send_actions
+    if send_actions(config, nouvelles):
+        seen |= {a.get("_key") for a in nouvelles if a.get("_key")}
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(sorted(seen), f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
 # Indices qu'un lien pointe vers une consultation (et pas vers un pied de page).
 LINK_HINTS = (
     "consultation", "annonce", "avis", "detail", "entreprise", "index.php",
@@ -368,6 +467,7 @@ def fetch(config) -> list[Tender]:
         ids = data[0].split() if data and data[0] else []
 
         lus = 0
+        actions: list[dict] = []
         for num in ids:
             typ, msgdata = M.fetch(num, "(RFC822)")
             if typ != "OK" or not msgdata or not msgdata[0]:
@@ -380,7 +480,16 @@ def fetch(config) -> list[Tender]:
             if expediteurs and not any(dom in sender_l for dom in expediteurs):
                 continue
             lus += 1
+            subject = _decode_hdr(msg.get("Subject", ""))
             html, text = _get_bodies(msg)
+
+            # Notification sur une consultation en cours (deja engage) ?
+            if _classify(subject, (text or "") + " " + _strip_tags(html or "")) == "action":
+                act = _extract_action(subject, html, text, sender)
+                act["_key"] = msg.get("Message-ID") or f"{sender}|{subject}"
+                actions.append(act)
+                continue  # -> ne PAS remonter comme nouveau marche
+
             found = _extract_from_html(html, sender) if html else []
             if not found and text:
                 found = _extract_from_text(text, sender)
@@ -391,7 +500,9 @@ def fetch(config) -> list[Tender]:
         except Exception:
             pass
         M.logout()
-        print(f"      alertes e-mail : {lus} e-mail(s) d'alerte lus, {len(tenders)} consultation(s) extraite(s).")
+        print(f"      alertes e-mail : {lus} e-mail(s) lus, {len(tenders)} consultation(s) extraite(s), "
+              f"{len(actions)} notification(s) d'action.")
+        _handle_actions(config, actions)
     except imaplib.IMAP4.error as e:
         print(f"    /!\\ Alertes e-mail : connexion/lecture IMAP impossible ({e}).")
         print("        Verifie le mot de passe d'application et que l'IMAP est active dans Gmail.")

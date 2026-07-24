@@ -492,6 +492,11 @@ mail_alertes:
   dossier: "Notifications AO"  # libelle Gmail ou sont rangees les alertes. Mets "INBOX" si tu ne filtres pas.
   jours_recents: 14          # ne lire que les alertes des N derniers jours
   seulement_non_lus: false   # true = ne lire que les e-mails non lus
+  # Notifications sur des consultations ou tu es DEJA engage (demande de complement,
+  # question/reponse, changement de date, document a retirer...) : elles ne remontent
+  # PAS comme nouveaux marches, mais declenchent un e-mail "action a realiser".
+  email_actions: true        # false = desactiver l'e-mail "action a realiser"
+  actions_destinataire: ""   # vide = meme destinataire que le recap (email.destinataire)
   # On ne lit QUE les e-mails venant de ces expediteurs (securite anti-bruit).
   # Ajoute/retire selon les plateformes ou tu crees des alertes.
   expediteurs:

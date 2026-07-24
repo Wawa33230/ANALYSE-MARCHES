@@ -179,6 +179,27 @@ CPV**. On ratisse large côté plateforme ; c'est **l'outil qui trie et score** 
 > 💡 Tu peux aussi créer des alertes **par nom de bailleur** (tes clients : France Loire,
 > Logiouest, Creusalis…) : tu récupères alors **tous** leurs marchés, même hors mots-clés.
 
+## Deux types d'e-mails, deux traitements
+
+L'outil distingue automatiquement :
+
+1. **Nouvelle opportunité** (alerte « nouvelle consultation qui correspond à ta recherche »)
+   → **remonte dans la veille** (tableau de bord + récap hebdo), filtrée et scorée.
+2. **Notification sur une consultation où tu es DÉJÀ engagé** (demande de complément,
+   question/réponse, changement de date limite, document à retirer…)
+   → **ne remonte PAS** comme nouveau marché. À la place, tu reçois un e-mail
+   **« Actions à réaliser »** sur ta boîte principale, avec la nature de l'action,
+   la consultation, l'échéance et le lien direct.
+
+Chaque notification d'action n'est signalée **qu'une seule fois** (mémoire dans
+`data/actions-notifiees.json`), pour ne pas te renvoyer le même rappel chaque semaine.
+
+Réglages (`config.yaml`, section `mail_alertes:`) :
+| Réglage | Rôle |
+|---|---|
+| `email_actions: true` | activer l'e-mail « Actions à réaliser » (mets `false` pour le couper) |
+| `actions_destinataire: ""` | destinataire de l'e-mail d'actions (vide = même que le récap) |
+
 ## Activer côté outil
 Dans `config.yaml` : `sources: > mail_alertes: true` (déjà activé par défaut) et vérifie
 la section `mail_alertes:` (compte, dossier). Le mot de passe est le **même** que pour

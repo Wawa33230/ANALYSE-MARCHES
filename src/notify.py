@@ -190,9 +190,6 @@ def send_recap(config, tenders: list, new_ids: set, dashboard_path: str | None =
     (configuration incomplete ou erreur SMTP). Ne leve jamais d'exception."""
     destinataire = config.get("email.destinataire", "")
     expediteur = config.get("email.expediteur", "")
-    hote = config.get("email.smtp_hote", "smtp.gmail.com")
-    port = int(config.get("email.smtp_port", 587) or 587)
-    securite = str(config.get("email.securite", "starttls")).lower()
     prefixe = config.get("email.objet_prefixe", "Veille AO")
     joindre = config.get("email.joindre_tableau", True)
     envoyer_si_vide = config.get("email.envoyer_si_vide", True)
@@ -242,6 +239,19 @@ def send_recap(config, tenders: list, new_ids: set, dashboard_path: str | None =
         except Exception:
             pass  # l'e-mail part quand meme sans la piece jointe
 
+    if _smtp_send(config, msg, password):
+        print(f"   E-mail envoye a {destinataire} ({len(interesting)} cible(s), {len(nouveautes)} nouvelle(s)).")
+        return True
+    return False
+
+
+def _smtp_send(config, msg: EmailMessage, password: str) -> bool:
+    """Ouvre la connexion SMTP (STARTTLS ou SSL) et envoie le message.
+    Ne leve jamais d'exception ; retourne True si l'envoi a reussi."""
+    hote = config.get("email.smtp_hote", "smtp.gmail.com")
+    port = int(config.get("email.smtp_port", 587) or 587)
+    securite = str(config.get("email.securite", "starttls")).lower()
+    expediteur = msg["From"]
     try:
         if securite == "ssl":
             ctx = ssl.create_default_context()
@@ -255,12 +265,90 @@ def send_recap(config, tenders: list, new_ids: set, dashboard_path: str | None =
                 s.ehlo()
                 s.login(expediteur, password)
                 s.send_message(msg)
-        print(f"   E-mail envoye a {destinataire} ({len(interesting)} cible(s), {len(nouveautes)} nouvelle(s)).")
         return True
     except smtplib.SMTPAuthenticationError:
         print("   /!\\ Echec d'authentification SMTP : verifie l'adresse expediteur et le")
-        print("       MOT DE PASSE D'APPLICATION (pas le mot de passe habituel du compte Gmail).")
+        print("       MOT DE PASSE D'APPLICATION (pas le mot de passe habituel du compte).")
         return False
     except Exception as e:  # noqa: BLE001
         print(f"   /!\\ Envoi e-mail impossible : {e}")
         return False
+
+
+def _action_row(a: dict) -> str:
+    dl = a.get("action_deadline") or ""
+    dl_html = (
+        f'<div style="font-weight:700;color:#c0392b;font-size:13px;">A faire avant le {_esc(dl)}</div>'
+        if dl else '<div style="color:#889;font-size:12px;">Echeance a verifier sur la plateforme</div>'
+    )
+    ref = _esc(a.get("reference", "") or "")
+    ref_html = f' &middot; <span style="font-family:Consolas,monospace;font-size:11px;color:#1f4e79;">Ref {ref}</span>' if ref else ""
+    url = a.get("url", "") or ""
+    lien = (f'<a href="{_esc(url)}" style="color:#1f4e79;font-weight:600;text-decoration:none;">Ouvrir la consultation &#8599;</a>'
+            if url else "")
+    return f"""
+    <tr>
+      <td style="padding:12px 10px;border-bottom:1px solid #eef1f4;vertical-align:top;">
+        <div style="font-weight:700;color:#8a1c0a;font-size:13px;text-transform:uppercase;letter-spacing:.3px;">{_esc(a.get('nature','Action'))}</div>
+        <div style="font-weight:600;color:#13202e;font-size:14px;margin-top:3px;">{_esc(a.get('title',''))}</div>
+        <div style="color:#566;font-size:12px;margin-top:2px;">{_esc(a.get('buyer','') or '-')}{ref_html} &middot; {_esc(a.get('platform',''))}</div>
+        <div style="margin-top:6px;">{lien}</div>
+      </td>
+      <td style="padding:12px 10px;border-bottom:1px solid #eef1f4;vertical-align:top;white-space:nowrap;text-align:right;">{dl_html}</td>
+    </tr>"""
+
+
+def _build_actions_html(actions: list) -> str:
+    actions = sorted(actions, key=lambda a: a.get("action_deadline") or "9999")
+    rows = "".join(_action_row(a) for a in actions)
+    generated = datetime.now().strftime("%d/%m/%Y a %H:%M")
+    return f"""<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"></head>
+<body style="margin:0;background:#f4f6f8;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1c2733;">
+  <div style="max-width:720px;margin:0 auto;padding:20px;">
+    <div style="background:#8a1c0a;color:#fff;border-radius:10px;padding:18px 22px;">
+      <div style="font-size:18px;font-weight:700;">Actions a realiser &mdash; consultations en cours</div>
+      <div style="opacity:.9;font-size:13px;margin-top:4px;">Detecte le {generated} dans tes notifications de plateformes</div>
+    </div>
+    <p style="font-size:14px;line-height:1.5;margin:18px 4px;">
+      Tu as <b>{len(actions)} action(s)</b> a traiter sur des consultations ou tu es <b>deja engage</b>
+      (demande de complement, question/reponse, changement de date, document a retirer...).
+      Ces consultations ne sont volontairement <b>pas</b> remontees comme nouveaux marches.
+    </p>
+    <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;">{rows}</table>
+    <p style="color:#889;font-size:12px;margin-top:22px;padding:0 4px;line-height:1.5;">
+      Verifie toujours le detail et l'echeance exacte directement sur la plateforme via le lien.
+    </p>
+  </div>
+</body></html>"""
+
+
+def send_actions(config, actions: list) -> bool:
+    """Envoie l'e-mail 'actions a realiser' (notifications sur consultations en
+    cours). Retourne True si parti. Ne leve jamais d'exception."""
+    if not actions:
+        return False
+    expediteur = config.get("email.expediteur", "")
+    destinataire = config.get("mail_alertes.actions_destinataire", "") or config.get("email.destinataire", "")
+    if not expediteur or not destinataire:
+        print("   /!\\ E-mail 'actions' non envoye : expediteur/destinataire manquant.")
+        return False
+    password = _resolve_password(config)
+    if not password:
+        print("   /!\\ E-mail 'actions' non envoye : mot de passe d'application introuvable.")
+        return False
+
+    msg = EmailMessage()
+    msg["Subject"] = f"[ACTION] {len(actions)} action(s) a realiser sur tes consultations en cours"
+    msg["From"] = expediteur
+    msg["To"] = destinataire
+    msg.set_content(
+        f"Tu as {len(actions)} action(s) a realiser sur des consultations en cours "
+        "(demande de complement, question/reponse, changement de date...). "
+        "Ouvre cet e-mail en HTML pour le detail."
+    )
+    msg.add_alternative(_build_actions_html(actions), subtype="html")
+    if _smtp_send(config, msg, password):
+        print(f"   E-mail 'actions' envoye a {destinataire} ({len(actions)} action(s)).")
+        return True
+    return False
