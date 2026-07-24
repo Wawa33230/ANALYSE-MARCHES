@@ -7,6 +7,11 @@ __pycache__/
 data/*.json
 output/*.html
 
+# Secret e-mail (mot de passe d'application SMTP) - NE JAMAIS committer
+motdepasse-mail.txt
+# Journal de la tache hebdomadaire
+veille-hebdo.log
+
 # Systeme
 .DS_Store
 Thumbs.db

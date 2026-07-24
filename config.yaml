@@ -449,3 +449,27 @@ affichage:
   ouvrir_navigateur: true
   fichier_sortie: "output/tableau-de-bord.html"
   garder_hors_cible: false   # true = afficher aussi les marches "hors cible" dans le tableau
+
+# ===========================================================================
+#  E-MAIL AUTOMATIQUE  (recap hebdomadaire des consultations interessantes)
+#  Mode d'emploi complet : VEILLE-AUTOMATIQUE-HEBDO.md
+#  - L'e-mail n'est envoye QUE lors d'une execution "python -m src.main --email"
+#    (c'est ce que fait la tache planifiee hebdomadaire), sauf si
+#    envoyer_recap = true ci-dessous (alors chaque lancement enverra un mail).
+#  - SECURITE : ne mets JAMAIS ton mot de passe directement ici. Utilise un
+#    "mot de passe d'application" Gmail, place soit dans la variable
+#    d'environnement VEILLE_SMTP_PASSWORD, soit dans le fichier local
+#    motdepasse-mail.txt (ignore par git). Voir la doc.
+# ===========================================================================
+email:
+  envoyer_recap: false                 # true = envoyer un mail a CHAQUE lancement (sinon : seulement avec --email / tache hebdo)
+  destinataire: "ets.ouhaddad@gmail.com"   # a QUI envoyer le recap (change si besoin)
+  expediteur:   "ets.ouhaddad@gmail.com"   # compte GMAIL qui envoie (= identifiant SMTP)
+  smtp_hote: "smtp.gmail.com"
+  smtp_port: 587
+  securite: "starttls"                 # "starttls" (port 587, Gmail) ou "ssl" (port 465)
+  mot_de_passe_env: "VEILLE_SMTP_PASSWORD"    # variable d'environnement lue en priorite
+  mot_de_passe_fichier: "motdepasse-mail.txt" # sinon, fichier local (a NE PAS committer)
+  joindre_tableau: true                # joindre le tableau de bord HTML complet au mail
+  envoyer_si_vide: true                # envoyer meme s'il n'y a aucune nouveaute cette semaine
+  objet_prefixe: "Veille AO"

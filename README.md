@@ -41,6 +41,13 @@ le Bloc-notes (sur GitHub dans le navigateur, ils ne sont pas encore chez toi).
 > 💡 Refais l'étape 3 quand tu veux : idéalement **2 fois par semaine** (lundi / jeudi)
 > pour ne rien rater. Chaque lancement régénère le tableau à jour.
 
+### Étape 4 — (Recommandé) Veille AUTOMATIQUE 1×/semaine par e-mail
+Plus besoin d'y penser : l'outil peut se lancer **tout seul chaque lundi** et t'envoyer
+un **e-mail récap** des consultations intéressantes (nouveautés surlignées + tableau
+complet en pièce jointe).
+→ Mode d'emploi complet : **[VEILLE-AUTOMATIQUE-HEBDO.md](VEILLE-AUTOMATIQUE-HEBDO.md)**
+(en résumé : mot de passe d'application Gmail → `installer-tache-hebdo.bat`).
+
 ---
 
 ## 📊 Lire le tableau de bord

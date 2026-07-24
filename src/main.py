@@ -10,6 +10,7 @@ Usage :
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
 import sys
@@ -20,6 +21,7 @@ from .config import Config
 from .scoring import score_tender, _parse_date
 from .dashboard import render
 from . import sample_data
+from . import notify
 
 
 def _dedupe(tenders: list) -> list:
@@ -87,6 +89,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Veille appels d'offres - salle de bain / accessibilite")
     parser.add_argument("--demo", action="store_true", help="Donnees de demonstration (sans reseau)")
     parser.add_argument("--no-open", action="store_true", help="Ne pas ouvrir le navigateur")
+    parser.add_argument("--email", action="store_true",
+                        help="Envoyer le recap par e-mail (utilise par la tache hebdomadaire automatique)")
     parser.add_argument("--config", default=None, help="Chemin d'un config.yaml alternatif")
     args = parser.parse_args(argv)
 
@@ -125,6 +129,10 @@ def main(argv=None):
     prio = sum(1 for t in tenders if t.category == "prioritaire")
     print(f">> {len(tenders)} marche(s) retenu(s) dont {prio} prioritaire(s).")
 
+    # Nouveautes = marches absents de la derniere collecte (calcule AVANT de
+    # sauvegarder le fichier du jour, pour ne pas le compter comme "precedent").
+    new_ids = _new_ids(tenders)
+
     # Sauvegarde brute (cache / historique)
     _save_json(tenders)
 
@@ -133,7 +141,12 @@ def main(argv=None):
     path = render(tenders, out)
     print(f">> Tableau de bord genere : {os.path.abspath(path)}")
 
-    if config.get("affichage.ouvrir_navigateur", True) and not args.no_open:
+    # Envoi du recap par e-mail (execution automatique hebdomadaire ou --email)
+    if args.email or config.get("email.envoyer_recap", False):
+        print(">> Envoi du recapitulatif par e-mail ...")
+        notify.send_recap(config, tenders, new_ids, dashboard_path=path)
+
+    if config.get("affichage.ouvrir_navigateur", True) and not args.no_open and not args.email:
         try:
             webbrowser.open("file://" + os.path.abspath(path))
         except Exception:
@@ -155,6 +168,27 @@ def _save_json(tenders: list):
     path = os.path.join("data", f"marches-{date.today().isoformat()}.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump([t.to_dict() for t in tenders], f, ensure_ascii=False, indent=2)
+
+
+def _new_ids(tenders: list) -> set:
+    """Identifiants des marches absents de la DERNIERE collecte enregistree.
+
+    Sert a mettre en avant les NOUVEAUTES dans le recap hebdomadaire. Si aucune
+    collecte anterieure n'existe (1re utilisation), tout est considere comme nouveau."""
+    today_file = os.path.abspath(os.path.join("data", f"marches-{date.today().isoformat()}.json"))
+    previous = sorted(
+        f for f in glob.glob(os.path.join("data", "marches-*.json"))
+        if os.path.abspath(f) != today_file
+    )
+    current = {t.id for t in tenders}
+    if not previous:
+        return current  # premiere collecte : tout est nouveau
+    try:
+        with open(previous[-1], "r", encoding="utf-8") as f:
+            old = {row.get("id") for row in json.load(f) if row.get("id")}
+    except Exception:
+        return set()
+    return {tid for tid in current if tid not in old}
 
 
 if __name__ == "__main__":
