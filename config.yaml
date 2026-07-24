@@ -489,7 +489,7 @@ mail_alertes:
   imap_hote: "imap.gmail.com"   # Google Workspace = meme serveur IMAP que Gmail
   imap_port: 993
   compte: "loyk.duporge@adomsenior.fr"   # l'adresse qui RECOIT les alertes (vide = reprend email.expediteur)
-  dossier: "Alertes-AO"      # libelle Gmail dedie (les alertes y sont rangees par un filtre). Mets "INBOX" si tu ne filtres pas.
+  dossier: "Notifications AO"  # libelle Gmail ou sont rangees les alertes. Mets "INBOX" si tu ne filtres pas.
   jours_recents: 14          # ne lire que les alertes des N derniers jours
   seulement_non_lus: false   # true = ne lire que les e-mails non lus
   # On ne lit QUE les e-mails venant de ces expediteurs (securite anti-bruit).

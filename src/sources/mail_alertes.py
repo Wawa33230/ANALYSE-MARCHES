@@ -33,6 +33,52 @@ from .plateformes import BUYER_RE, REF_RE, _strip_tags, _guess_date
 # Lien "consultation" plausible dans un e-mail d'alerte.
 A_RE = re.compile(r'<a\b[^>]*?href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', re.I | re.S)
 
+# Texte d'ancre qui est en fait une URL (achatpublic met l'URL comme libelle) :
+# a ne PAS utiliser comme titre.
+URLISH_RE = re.compile(r'^\s*(?:https?://|www\.)', re.I)
+
+# Format tres courant (achatpublic, variantes Atexo) :
+#   "consultation [intitulee] <TITRE> (reference <REF>) lancee/publiee par <ACHETEUR>"
+CONSULT_RE = re.compile(
+    r'consultation\s+(?:intitul[ée]e?\s+)?["“«\']?\s*(.+?)\s*["”»\']?\s*'
+    r'\(\s*r[ée]f[ée]rence\s*[:°]?\s*([A-Za-z0-9][A-Za-z0-9\-_/.]+?)\s*\)',
+    re.I | re.S)
+# Acheteur dans la prose : "lancee par X", "publiee par X", "l'organisme X"
+PAR_RE = re.compile(
+    r'(?:lanc[ée]e?\s+par|publi[ée]e?\s+par|par\s+l[\'’]organisme|l[\'’]organisme)\s+'
+    r'([A-ZÉÈÀ0-9][\wÀ-ÿ&\'’\-. ]{1,50})',
+    re.I)
+# Dates : ISO (2026-08-14) OU francais (14/08/2026), y compris "au 14/08/2026".
+_DATE_ISO = re.compile(r'(\d{4})[-/](\d{2})[-/](\d{2})')
+_DATE_FR = re.compile(r'\b(\d{1,2})[/.](\d{1,2})[/.](\d{4})\b')
+# Contexte d'une date limite (on privilegie la date qui suit ces mots).
+_DEADLINE_CTX = re.compile(
+    r'(?:date limite|remise des (?:offres|plis)|remise des offres|'
+    r'limite de r[ée]ception|avant le|au plus tard le|cl[ôo]ture)\b(.{0,60})',
+    re.I | re.S)
+
+
+def _to_iso(text: str) -> str:
+    m = _DATE_ISO.search(text or "")
+    if m:
+        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+    m = _DATE_FR.search(text or "")
+    if m:
+        d, mo, y = m.group(1).zfill(2), m.group(2).zfill(2), m.group(3)
+        return f"{y}-{mo}-{d}"
+    return ""
+
+
+def _guess_deadline(text: str) -> str:
+    """Cherche d'abord une date proche d'un mot 'date limite / remise des plis',
+    sinon n'importe quelle date du texte."""
+    m = _DEADLINE_CTX.search(text or "")
+    if m:
+        d = _to_iso(m.group(1))
+        if d:
+            return d
+    return _to_iso(text)
+
 # Indices qu'un lien pointe vers une consultation (et pas vers un pied de page).
 LINK_HINTS = (
     "consultation", "annonce", "avis", "detail", "entreprise", "index.php",
@@ -134,29 +180,76 @@ def _looks_like_consultation(href: str, title: str) -> bool:
     return 12 <= len(t) <= 300
 
 
-def _extract_from_html(html: str, sender: str) -> list[Tender]:
-    body_text = _strip_tags(html)
-    default_buyer = ""
-    mb = BUYER_RE.search(body_text)
-    if mb:
-        default_buyer = mb.group(1).strip().rstrip(".,;:")
-
-    # 1) Retenir les liens "consultation" (dans l'ordre du mail, sans doublon).
-    items: list[tuple[str, str]] = []
-    seen: set[str] = set()
+def _all_links(html: str) -> list[tuple[str, str]]:
+    """(href, texte_ancre) pour tous les liens http, sans doublon d'URL."""
+    out, seen = [], set()
     for href, inner in A_RE.findall(html):
         href = href.strip()
-        title = re.sub(r"\s+", " ", _strip_tags(inner)).strip()
-        if not _looks_like_consultation(href, title) or href in seen:
+        if not href.lower().startswith("http") or href in seen:
             continue
         seen.add(href)
-        items.append((href, title))
+        out.append((href, re.sub(r"\s+", " ", _strip_tags(inner)).strip()))
+    return out
 
-    # 2) Localiser chaque intitule dans le texte, en avancant, pour BORNER la
-    #    fenetre de contexte au debut de l'avis suivant (evite d'emprunter la
-    #    reference / l'acheteur de la consultation d'apres).
-    positions: list[int] = []
-    search_from = 0
+
+def _pick_consultation_url(links: list[tuple[str, str]]) -> str:
+    """Choisit le lien vers la FICHE de consultation (et pas le lien 'telecharger
+    le document' ni la desinscription)."""
+    prefer = ("fichecsl", "consultation", "detailconsultation", "ficheconsultation",
+              "annonce", "avis", "detail")
+    for href, _ in links:
+        h = href.lower()
+        if any(x in h for x in LINK_EXCLUDE):
+            continue
+        if any(p in h for p in prefer):
+            return href
+    for href, _ in links:
+        if not any(x in href.lower() for x in LINK_EXCLUDE):
+            return href
+    return ""
+
+
+def _extract_from_html(html: str, sender: str) -> list[Tender]:
+    body_text = _strip_tags(html)
+    links = _all_links(html)
+    tenders: list[Tender] = []
+    seen_ids: set[str] = set()
+
+    # --- Cas 1 : le titre est dans la PROSE (achatpublic, variantes Atexo) :
+    #     "consultation <TITRE> (reference <REF>) lancee par <ACHETEUR>". ---
+    for m in CONSULT_RE.finditer(body_text):
+        title = re.sub(r"\s+", " ", m.group(1)).strip(" \"'«»“”")
+        reference = m.group(2).strip().rstrip(".,;:")
+        if not title or len(title) < 4:
+            continue
+        window = body_text[m.start(): m.start() + 500]
+        mb = PAR_RE.search(window) or PAR_RE.search(body_text)
+        buyer = mb.group(1).strip().rstrip(".,;:") if mb else ""
+        url = _pick_consultation_url(links)
+        tid = f"mail:{reference or title[:40]}"
+        if tid in seen_ids:
+            continue
+        seen_ids.add(tid)
+        tenders.append(
+            Tender(
+                id=tid,
+                source=f"Alerte mail ({_label_for(sender, urlparse(url).netloc)})",
+                title=title,
+                reference=reference,
+                buyer=buyer,
+                market_type="Plateforme (alerte e-mail)",
+                deadline=_guess_deadline(window) or _guess_deadline(body_text),
+                url=url,
+                description=f"Extrait d'une alerte e-mail ({sender}).",
+            )
+        )
+    if tenders:
+        return tenders
+
+    # --- Cas 2 : le titre est porte par les LIENS (digests "nouveaux resultats"). ---
+    items = [(h, t) for h, t in links
+             if t and not URLISH_RE.match(t) and _looks_like_consultation(h, t)]
+    positions, search_from = [], 0
     for _, title in items:
         key = title[:40] if title else ""
         idx = body_text.find(key, search_from) if key else -1
@@ -164,7 +257,11 @@ def _extract_from_html(html: str, sender: str) -> list[Tender]:
         if idx >= 0:
             search_from = idx + max(1, len(key))
 
-    tenders: list[Tender] = []
+    default_buyer = ""
+    mbd = BUYER_RE.search(body_text)
+    if mbd:
+        default_buyer = mbd.group(1).strip().rstrip(".,;:")
+
     for n, (href, title) in enumerate(items):
         idx = positions[n]
         if idx >= 0:
@@ -172,21 +269,19 @@ def _extract_from_html(html: str, sender: str) -> list[Tender]:
             window = body_text[idx: nxt if nxt > 0 else idx + 300]
         else:
             window = title
-        host = urlparse(href).netloc
         mref = REF_RE.search(title) or REF_RE.search(window)
         reference = mref.group(1).rstrip(".,;:") if mref else ""
-        deadline = _guess_date(window) or _guess_date(title)
         mb2 = BUYER_RE.search(window)
         buyer = (mb2.group(1).strip().rstrip(".,;:") if mb2 else default_buyer)
         tenders.append(
             Tender(
                 id=f"mail:{href}",
-                source=f"Alerte mail ({_label_for(sender, host)})",
+                source=f"Alerte mail ({_label_for(sender, urlparse(href).netloc)})",
                 title=title,
                 reference=reference,
                 buyer=buyer,
                 market_type="Plateforme (alerte e-mail)",
-                deadline=deadline,
+                deadline=_guess_deadline(window) or _guess_deadline(title),
                 url=href,
                 description=f"Extrait d'une alerte e-mail ({sender}).",
             )
@@ -223,7 +318,7 @@ def _extract_from_text(text: str, sender: str) -> list[Tender]:
                     source=f"Alerte mail ({_label_for(sender, host)})",
                     title=re.sub(r"\s+", " ", title).strip(),
                     market_type="Plateforme (alerte e-mail)",
-                    deadline=_guess_date(title),
+                    deadline=_guess_deadline(title),
                     url=href,
                     description=f"Extrait d'une alerte e-mail ({sender}).",
                 )
