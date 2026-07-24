@@ -10,10 +10,19 @@ Trois étapes, une seule fois. Compte ~5 minutes.
 
 ## Étape 1 — Créer un « mot de passe d'application » Gmail
 
+> **Compte concerné : `loyk.duporge@adomsenior.fr`** (Google Workspace = même
+> fonctionnement que Gmail : serveurs `smtp.gmail.com` / `imap.gmail.com`).
+> Ce **même** mot de passe sert à la fois à **envoyer** le récap et à **lire** les
+> alertes des plateformes.
+>
+> ⚠️ Google Workspace : si tu es **administrateur** du domaine, vérifie d'abord dans la
+> console admin (admin.google.com) que **IMAP** et les **mots de passe d'application**
+> sont autorisés (Sécurité → « Accès des applications moins sécurisées » / « IMAP »).
+
 Gmail refuse d'envoyer via un programme avec ton mot de passe habituel. Il faut un
 **mot de passe d'application** (16 caractères), spécifique à cet outil, révocable à tout moment.
 
-1. Le compte qui **envoie** le mail doit avoir la **validation en 2 étapes activée** :
+1. Connecte-toi sur **loyk.duporge@adomsenior.fr**, puis active la **validation en 2 étapes** :
    → https://myaccount.google.com/security → « Validation en deux étapes » → activer.
 2. Ensuite, va sur **https://myaccount.google.com/apppasswords**
 3. Donne un nom (ex. `Veille AO`) → **Créer**.

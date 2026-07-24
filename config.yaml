@@ -466,9 +466,9 @@ affichage:
 # ===========================================================================
 email:
   envoyer_recap: false                 # true = envoyer un mail a CHAQUE lancement (sinon : seulement avec --email / tache hebdo)
-  destinataire: "ets.ouhaddad@gmail.com"   # a QUI envoyer le recap (change si besoin)
-  expediteur:   "ets.ouhaddad@gmail.com"   # compte GMAIL qui envoie (= identifiant SMTP)
-  smtp_hote: "smtp.gmail.com"
+  destinataire: "loyk.duporge@adomsenior.fr"   # a QUI envoyer le recap (change si besoin)
+  expediteur:   "loyk.duporge@adomsenior.fr"   # compte Google Workspace qui envoie (= identifiant SMTP)
+  smtp_hote: "smtp.gmail.com"          # Google Workspace = meme serveur que Gmail
   smtp_port: 587
   securite: "starttls"                 # "starttls" (port 587, Gmail) ou "ssl" (port 465)
   mot_de_passe_env: "VEILLE_SMTP_PASSWORD"    # variable d'environnement lue en priorite
@@ -486,9 +486,9 @@ email:
 #  Mode d'emploi : VEILLE-AUTOMATIQUE-HEBDO.md (section "Alertes plateformes").
 # ===========================================================================
 mail_alertes:
-  imap_hote: "imap.gmail.com"
+  imap_hote: "imap.gmail.com"   # Google Workspace = meme serveur IMAP que Gmail
   imap_port: 993
-  compte: ""                 # vide = utiliser email.expediteur ; sinon l'adresse Gmail qui RECOIT les alertes
+  compte: "loyk.duporge@adomsenior.fr"   # l'adresse qui RECOIT les alertes (vide = reprend email.expediteur)
   dossier: "Alertes-AO"      # libelle Gmail dedie (les alertes y sont rangees par un filtre). Mets "INBOX" si tu ne filtres pas.
   jours_recents: 14          # ne lire que les alertes des N derniers jours
   seulement_non_lus: false   # true = ne lire que les e-mails non lus
