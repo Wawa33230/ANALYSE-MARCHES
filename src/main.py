@@ -145,19 +145,40 @@ def main(argv=None):
     path = render(tenders, out)
     print(f">> Tableau de bord genere : {os.path.abspath(path)}")
 
-    # Envoi du recap par e-mail (execution automatique hebdomadaire ou --email)
+    # Envoi du recap par e-mail (execution automatique ou --email)
+    exit_code = 0
     if args.email or config.get("email.envoyer_recap", False):
-        print(">> Envoi du recapitulatif par e-mail ...")
-        notify.send_recap(config, tenders, new_ids, dashboard_path=path)
-        # Rappel des actions a realiser (notifications de consultations en cours,
+        # Actions a realiser detectees dans les alertes (consultations en cours,
         # non encore marquees d'une etoile dans Gmail).
+        actions = []
         if config.get("mail_alertes.email_actions", True):
             try:
                 from .sources import mail_alertes as _ma
-                if getattr(_ma, "PENDING_ACTIONS", None):
-                    notify.send_actions(config, list(_ma.PENDING_ACTIONS))
+                actions = list(getattr(_ma, "PENDING_ACTIONS", []) or [])
+            except Exception:  # noqa: BLE001
+                actions = []
+
+        # Par defaut : UN SEUL e-mail (recap + actions). Un envoi unique = plus
+        # fiable (un des deux mails separes pouvait se perdre / partir en spam).
+        email_unique = config.get("email.email_unique", True)
+        print(">> Envoi du recapitulatif par e-mail ...")
+        ok = False
+        try:
+            ok = notify.send_recap(config, tenders, new_ids, dashboard_path=path,
+                                   actions=actions if email_unique else None)
+        except Exception as e:  # noqa: BLE001
+            print(f"   /!\\ Envoi du recap impossible : {e}")
+        if not email_unique and actions:
+            try:
+                notify.send_actions(config, actions)
             except Exception as e:  # noqa: BLE001
                 print(f"   /!\\ Rappel d'actions non envoye : {e}")
+        if not ok:
+            # Code retour non nul -> visible dans le Planificateur de taches et
+            # dans veille-hebdo.log : on SAIT que le mail n'est pas parti.
+            exit_code = 2
+
+    _write_last_run(len(tenders), exit_code)
 
     if config.get("affichage.ouvrir_navigateur", True) and not args.no_open and not args.email:
         try:
@@ -166,7 +187,22 @@ def main(argv=None):
             pass
 
     print("=" * 64)
-    return 0
+    return exit_code
+
+
+def _write_last_run(nb_marches: int, exit_code: int):
+    """Trace la derniere execution (data/derniere-execution.txt) : permet de
+    verifier d'un coup d'oeil que la veille automatique tourne vraiment."""
+    try:
+        os.makedirs("data", exist_ok=True)
+        from datetime import datetime
+        statut = "OK" if exit_code == 0 else f"PROBLEME (code {exit_code}, voir data/journal-envois.log)"
+        with open(os.path.join("data", "derniere-execution.txt"), "w", encoding="utf-8") as f:
+            f.write(f"Derniere execution : {datetime.now().strftime('%d/%m/%Y a %H:%M:%S')}\n"
+                    f"Marches retenus    : {nb_marches}\n"
+                    f"Statut             : {statut}\n")
+    except Exception:
+        pass
 
 
 def _keep_not_expired(t) -> bool:

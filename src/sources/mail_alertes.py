@@ -189,9 +189,27 @@ DOMAIN_LABEL = {
     "maximilien.fr": "Maximilien (IDF)",
     "marches-securises.fr": "marches-securises",
     "e-marchespublics.com": "e-marchespublics",
+    "dematis.com": "e-marchespublics (Dematis)",
     "megalis.bretagne.bzh": "Megalis Bretagne",
     "marches-publics.gouv.fr": "PLACE (Etat)",
     "atexo.com": "Atexo",
+    "marches-publics.info": "marches-publics.info (AWS)",
+    "aws-achat.info": "AWS-Achat",
+    "agysoft.fr": "AWS / Agysoft",
+    "boamp.fr": "BOAMP (alerte)",
+    "ted.europa.eu": "TED (alerte)",
+    "francemarches.com": "France Marches",
+    "france-marches.com": "France Marches",
+    "klekoon.com": "Klekoon",
+    "marchesonline.com": "MarchesOnline",
+    "centraledesmarches.com": "Centrale des marches",
+    "achatsolutions.fr": "Achat Solutions",
+    "spigao.com": "Spigao",
+    "doubletrade.com": "DoubleTrade",
+    "vecteurplus.com": "Vecteur Plus",
+    "e-bourgogne.fr": "Territoires numeriques BFC",
+    "safetender.com": "SafeTender",
+    "wanao.com": "Wanao",
 }
 
 
@@ -429,6 +447,13 @@ def fetch(config) -> list[Tender]:
     jours = int(config.get("mail_alertes.jours_recents", 14) or 14)
     non_lus = bool(config.get("mail_alertes.seulement_non_lus", False))
     expediteurs = [str(e).lower() for e in (config.get("mail_alertes.expediteurs", []) or [])]
+    # Filtre expediteurs : STRICT quand on lit toute la boite (INBOX), mais
+    # OUVERT quand on lit un libelle dedie ("Notifications AO") : le filtre Gmail
+    # decide deja de ce qui y entre -> une NOUVELLE plateforme est prise en compte
+    # automatiquement, sans devoir modifier config.yaml (aucun marche rate).
+    stricts = config.get("mail_alertes.expediteurs_stricts", None)
+    if stricts is None:
+        stricts = (str(dossier).strip().upper() == "INBOX")
 
     if not compte:
         print("    /!\\ Alertes e-mail : renseigne mail_alertes.compte (ou email.expediteur).")
@@ -456,16 +481,26 @@ def fetch(config) -> list[Tender]:
         actions: list[dict] = []
         traitees = 0
         for num in ids:
-            typ, msgdata = M.fetch(num, "(FLAGS RFC822)")
-            if typ != "OK" or not msgdata or not msgdata[0]:
+            typ, msgdata = M.fetch(num, "(FLAGS BODY.PEEK[])")
+            if typ != "OK" or not msgdata:
                 continue
-            flags_raw = msgdata[0][0] or b""   # contient les FLAGS (dont \\Flagged = etoile)
-            raw = msgdata[0][1]
+            # Les FLAGS (dont \\Flagged = etoile) peuvent arriver AVANT ou APRES
+            # le corps selon le serveur : on inspecte toutes les parties.
+            raw, flags_raw = None, b""
+            for part in msgdata:
+                if isinstance(part, tuple):
+                    flags_raw += part[0] or b""
+                    if raw is None and part[1]:
+                        raw = part[1]
+                elif isinstance(part, bytes):
+                    flags_raw += part
+            if not raw:
+                continue
             msg = email.message_from_bytes(raw)
             sender = _decode_hdr(msg.get("From", ""))
             sender_l = sender.lower()
-            # Ne garder que les expediteurs d'alerte connus (si une liste est fournie).
-            if expediteurs and not any(dom in sender_l for dom in expediteurs):
+            # Ne garder que les expediteurs d'alerte connus (mode strict / INBOX).
+            if stricts and expediteurs and not any(dom in sender_l for dom in expediteurs):
                 continue
             lus += 1
             subject = _decode_hdr(msg.get("Subject", ""))

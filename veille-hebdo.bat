@@ -9,6 +9,14 @@ rem ============================================================
 chcp 65001 >nul
 cd /d "%~dp0"
 
+rem --- Rotation du journal (au-dela de 1 Mo on archive et on repart a zero) ---
+if exist "veille-hebdo.log" (
+  for %%A in ("veille-hebdo.log") do if %%~zA GTR 1048576 (
+    copy /Y "veille-hebdo.log" "veille-hebdo.ancien.log" >nul
+    type nul > "veille-hebdo.log"
+  )
+)
+
 set "PYEXE="
 where py >nul 2>nul && set "PYEXE=py"
 if not defined PYEXE (
