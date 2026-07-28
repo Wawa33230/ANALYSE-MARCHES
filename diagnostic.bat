@@ -35,8 +35,7 @@ echo   2/3 et 3/3 - CONFIG, LECTURE GMAIL, ENVOI + E-MAIL DE TEST
 echo ============================================================
 
 set "PYEXE="
-if exist ".venv\Scripts\python.exe" set "PYEXE=.venv\Scripts\python.exe"
-if not defined PYEXE ( where py >nul 2>nul && set "PYEXE=py" )
+where py >nul 2>nul && set "PYEXE=py"
 if not defined PYEXE ( where python >nul 2>nul && set "PYEXE=python" )
 if not defined PYEXE (
   echo [ERREUR] Python introuvable sur ce PC. Installe-le depuis python.org
@@ -45,7 +44,26 @@ if not defined PYEXE (
   exit /b 1
 )
 
-%PYEXE% -m src.diagnostic --envoi-test
+rem --- Verifie le dossier complet
+if not exist "requirements.txt" (
+  echo [ERREUR] Le fichier requirements.txt est introuvable.
+  echo Tu as probablement lance ce .bat sans les autres fichiers du projet.
+  pause
+  exit /b 1
+)
+
+rem --- Creation/activation de l'environnement Python local
+if not exist ".venv\Scripts\python.exe" (
+  echo Installation des composants en cours...
+  %PYEXE% -m venv .venv
+  call ".venv\Scripts\activate.bat"
+  python -m pip install --upgrade pip >nul 2>&1
+  python -m pip install -r requirements.txt >nul 2>&1
+) else (
+  call ".venv\Scripts\activate.bat"
+)
+
+python -m src.diagnostic --envoi-test
 
 echo.
 echo ------------------------------------------------------------
