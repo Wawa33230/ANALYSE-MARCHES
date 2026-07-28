@@ -20,7 +20,7 @@ if "%~1"=="" (
 cd /d "%~1"
 title Mise a jour - Veille AO
 
-set "BRANCHE=claude/tool-operational-integrations-hf6lod"
+set "BRANCHE=main"
 set "ZIPURL=https://codeload.github.com/Wawa33230/ANALYSE-MARCHES/zip/refs/heads/%BRANCHE%"
 
 echo ============================================================

@@ -12,8 +12,10 @@
   Ambition affichée : équivalent d'un outil payant type **DoubleTrade**.
 
 ## 2. Dépôt & branche
-- Repo : **`Wawa33230/ANALYSE-MARCHES`** — branche de travail : **`claude/tool-operational-integrations-hf6lod`**
-  (contient tout l'historique de l'ancienne branche `claude/tender-search-tool-setup-x65gpm`).
+- Repo : **`Wawa33230/ANALYSE-MARCHES`** — branche de référence : **`main`**
+  (contient tout l'historique des anciennes branches `claude/tender-search-tool-setup-x65gpm`
+  et `claude/tool-operational-integrations-hf6lod`). Penser à mettre `main` comme branche
+  par défaut sur GitHub (Settings → Branches) si ce n'est pas déjà fait.
 - L'outil tourne **sur le PC de Loyk** (Windows), pas dans le cloud.
 
 ## 3. Ce qui est FAIT et OPÉRATIONNEL ✅
@@ -55,7 +57,7 @@
 
 ## 5. Points EN ATTENTE / à suivre ⏳
 1. **Mettre à jour le PC de Loyk** : re-télécharger UNE dernière fois le ZIP de la branche
-   `claude/tool-operational-integrations-hf6lod` (ensuite `mettre-a-jour.bat` suffira),
+   **`main`** (ensuite `mettre-a-jour.bat` suffira),
    puis relancer `installer-tache-hebdo.bat` (choix quotidien/hebdo + rattrapage),
    puis `diagnostic.bat` pour tout vérifier.
 2. **Google Workspace en fin d'essai** (~fin juillet 2026) → doit être activé/payé sinon
