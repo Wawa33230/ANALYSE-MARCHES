@@ -58,8 +58,12 @@ plateformes_web:
     champ_motcle: "searchCslBean.intitule"
     encodage: "ISO-8859-15"
     parseur: cartes
-    actif: true          # SONDE : au 1er lancement, enregistre data/achatpublic-debug.html
-    calibre: false       #  (envoie-moi ce fichier pour que je finalise le lecteur achatpublic)
+    # NON INTEGRABLE : la sonde a montre une page de CONNEXION + CAPTCHA (hCaptcha)
+    # + rendu React. achatpublic exige un compte et bloque tout acces automatique.
+    # -> seule voie : alertes e-mail depuis le compte (a verifier dans "Mes alertes"),
+    #    surveillance manuelle, ou agregateur payant.
+    actif: false
+    calibre: false
 
   # Scraping abandonne (site JS / connexion refusee) -> utiliser leurs alertes RSS.
   - nom: "maximilien.fr (IDF)"
