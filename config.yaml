@@ -241,6 +241,10 @@ scoring:
     - ozanam
     - agglo de la rochelle
     - logiouest
+    - 3f centre val de loire
+    - immobiliere 3f
+    - "3f residences"
+    - action logement
 
   # --- Indices "bailleur social" dans le nom de l'acheteur (bonus unique) ---
   #  Sert aussi a PRESERVER un bailleur dont le nom contient un mot de collectivite
