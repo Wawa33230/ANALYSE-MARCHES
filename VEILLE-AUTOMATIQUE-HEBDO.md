@@ -1,8 +1,18 @@
-# Veille automatique 1×/semaine + récap par e-mail — mode d'emploi
+# Veille automatique + récap par e-mail — mode d'emploi
 
-L'outil peut tourner **tout seul une fois par semaine** (lundi 08h00 par défaut) et
-t'envoyer un **e-mail récapitulatif** des consultations intéressantes, avec les
-**nouveautés** de la semaine surlignées et le **tableau de bord complet en pièce jointe**.
+L'outil tourne **tout seul** (tous les jours à 08h00 — recommandé pour ne rien
+rater — ou chaque lundi, au choix à l'installation) et t'envoie **UN e-mail
+récapitulatif unique** contenant :
+- les **actions à réaliser** sur tes consultations en cours (en tête, en rouge),
+- les consultations intéressantes, **nouveautés** surlignées,
+- le **tableau de bord complet en pièce jointe** (fichier ZIP : double-clique
+  dessus puis ouvre le fichier HTML qu'il contient).
+
+Si le PC est **éteint ou en veille** à 08h00, la veille se lance automatiquement
+**dès qu'il est rallumé** (rattrapage automatique installé avec la tâche).
+
+En cas de doute (« le mail n'est pas arrivé », « la tâche a-t-elle tourné ? ») :
+**double-clique sur `diagnostic.bat`** — il vérifie tout et envoie un mail de test.
 
 Trois étapes, une seule fois. Compte ~5 minutes.
 
@@ -67,21 +77,32 @@ C'est fini. 🎉
 
 ---
 
-## Tester tout de suite (sans attendre lundi)
+## Tester tout de suite (sans attendre le prochain créneau)
 
-Deux options :
+- **Le plus simple : double-clique sur `diagnostic.bat`.** Il vérifie la tâche
+  planifiée, le mot de passe, la lecture Gmail (IMAP), l'envoi (SMTP), et
+  t'envoie un **e-mail de test**. Chaque point affiche `[OK]` ou `[ERREUR]` avec le remède.
 
-- **Le mail seulement** — dans le dossier, tape dans la barre d'adresse `cmd` puis :
+- **Lancer une vraie collecte + envoi** — dans le dossier, tape `cmd` dans la barre d'adresse puis :
   ```
   schtasks /Run /TN "VeilleAO-Hebdo"
   ```
   (ou double-clique sur `veille-hebdo.bat`). Le résultat s'écrit dans `veille-hebdo.log`.
 
-- **Vérifier l'envoi e-mail en direct** : ouvre une invite de commande dans le dossier et lance :
-  ```
-  .venv\Scripts\python -m src.main --no-open --email
-  ```
-  Les messages t'indiquent si le mail est **parti** ou **pourquoi** il ne part pas.
+- **Où vérifier ce qui s'est passé** :
+  - `data\derniere-execution.txt` — date/heure et résultat de la dernière exécution ;
+  - `data\journal-envois.log` — chaque e-mail : ENVOYÉ ou ÉCHEC + la raison ;
+  - `veille-hebdo.log` — le détail complet des exécutions automatiques.
+
+---
+
+## Mettre à jour l'outil
+
+**Double-clique sur `mettre-a-jour.bat`** : il télécharge la dernière version,
+remplace les fichiers **en conservant** ton mot de passe (`motdepasse-mail.txt`),
+ton historique (`data\`, `output\`) et en sauvegardant ton ancien `config.yaml`
+(copie `config-precedente.yaml`), puis **re-pointe la tâche planifiée** vers le
+dossier. Plus besoin de re-télécharger le ZIP ni de réinstaller quoi que ce soit.
 
 ---
 
@@ -109,9 +130,10 @@ restent en place ; seule la planification est retirée).
 
 | Réglage | Rôle |
 |---|---|
-| `envoyer_recap: true` | envoyer un mail à **chaque** lancement (même manuel), pas seulement la tâche hebdo |
-| `joindre_tableau: false` | ne pas joindre le tableau de bord HTML |
-| `envoyer_si_vide: false` | ne **pas** envoyer de mail les semaines sans aucune cible |
+| `envoyer_recap: true` | envoyer un mail à **chaque** lancement (même manuel), pas seulement la tâche automatique |
+| `joindre_tableau: false` | ne pas joindre le tableau de bord (joint en **ZIP** : un `.html` brut est parfois bloqué par Gmail) |
+| `envoyer_si_vide: false` | ne **pas** envoyer de mail quand il n'y a aucune cible ni action |
+| `email_unique: false` | revenir à **deux** e-mails séparés (récap + actions) — déconseillé |
 | `objet_prefixe: "..."` | changer le début de l'objet du mail |
 
 ---
@@ -134,10 +156,15 @@ Inutile d'en créer une exprès :
 **Recommandé (plus propre) — un libellé Gmail dédié :**
 1. Gmail → roue crantée → **Voir tous les paramètres** → **Filtres** → **Créer un filtre**.
 2. Champ « De » : `ternum-bfc.fr OR achatpublic.com OR maximilien.fr OR marches-securises.fr OR e-marchespublics.com OR megalis.bretagne.bzh OR marches-publics.gouv.fr` → **Créer un filtre**.
-3. Coche **Appliquer le libellé** → **Nouveau libellé** : `Alertes-AO` → **Créer le filtre**.
-4. Dans `config.yaml`, section `mail_alertes:`, mets `dossier: "Alertes-AO"`.
+3. Coche **Appliquer le libellé** → **Nouveau libellé** : `Notifications AO` → **Créer le filtre**.
+4. Dans `config.yaml`, section `mail_alertes:`, mets `dossier: "Notifications AO"` (déjà fait).
 
-(Sans ça, laisse `dossier: "INBOX"` : l'outil filtre quand même par expéditeur.)
+> 💡 Quand l'outil lit un **libellé dédié**, il prend en compte **tous** les e-mails
+> qui s'y trouvent, quel que soit l'expéditeur : pour **ajouter une plateforme**, il
+> suffit d'ajouter son domaine au **filtre Gmail** — rien à changer dans l'outil.
+
+(Sans libellé, laisse `dossier: "INBOX"` : l'outil filtre alors par expéditeur,
+liste `expediteurs` du `config.yaml`.)
 
 ## Format de l'alerte : HTML ou texte ?
 
@@ -217,9 +244,10 @@ l'envoi (rien de plus à faire si tu as suivi les étapes 1 à 3).
 
 ## Points importants
 
-- **L'ordinateur doit être allumé** à l'heure prévue (le Planificateur peut rattraper un
-  créneau manqué : coche « Exécuter dès que possible après un démarrage manqué » dans les
-  propriétés de la tâche).
+- **PC éteint à 08h00 ?** Pas grave : l'installateur active désormais le **rattrapage
+  automatique** (« Exécuter dès que possible après un démarrage manqué ») + la **sortie
+  de veille**. Si la tâche a été installée avec une ancienne version, relance simplement
+  `installer-tache-hebdo.bat` une fois.
 - Le mot de passe d'application vit **uniquement** dans `motdepasse-mail.txt` sur ton PC
   (ou dans la variable d'environnement `VEILLE_SMTP_PASSWORD`). Il n'est **jamais** publié
   sur GitHub.

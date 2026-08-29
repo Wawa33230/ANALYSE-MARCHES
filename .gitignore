@@ -5,7 +5,13 @@ __pycache__/
 
 # Donnees collectees et tableaux generes (specifiques a chaque execution)
 data/*.json
+data/*.log
+data/*.txt
 output/*.html
+
+# Sauvegardes locales de configuration (mise a jour)
+config-precedente.yaml
+config-nouvelle-version.yaml
 
 # Secret e-mail (mot de passe d'application SMTP) - NE JAMAIS committer
 motdepasse-mail.txt

@@ -15,9 +15,11 @@ SMTP est lu, dans cet ordre :
 
 from __future__ import annotations
 
+import io
 import os
 import smtplib
 import ssl
+import zipfile
 from datetime import date, datetime
 from email.message import EmailMessage
 
@@ -60,6 +62,26 @@ def _resolve_password(config) -> str | None:
         return inline
 
     return None
+
+
+# --------------------------------------------------------------------------
+#  Journal des envois (diagnostic : "l'e-mail est-il parti, et pourquoi pas ?")
+# --------------------------------------------------------------------------
+JOURNAL_ENVOIS = os.path.join("data", "journal-envois.log")
+
+
+def _log_send(sujet: str, destinataire: str, ok: bool, detail: str = ""):
+    """Trace chaque tentative d'envoi dans data/journal-envois.log : on sait
+    toujours si un e-mail est parti, et sinon pourquoi. N'echoue jamais."""
+    try:
+        os.makedirs(os.path.dirname(JOURNAL_ENVOIS), exist_ok=True)
+        statut = "ENVOYE" if ok else "ECHEC"
+        stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(JOURNAL_ENVOIS, "a", encoding="utf-8") as f:
+            f.write(f"[{stamp}] {statut} -> {destinataire} | {sujet}"
+                    + (f" | {detail}" if detail else "") + "\n")
+    except Exception:
+        pass
 
 
 # --------------------------------------------------------------------------
@@ -147,7 +169,26 @@ def _section(titre: str, tenders: list, new_ids: set, couleur: str) -> str:
     </table>"""
 
 
-def build_html(tenders: list, new_ids: set, generated: str) -> str:
+def _actions_block_html(actions: list) -> str:
+    """Bloc HTML 'actions a realiser' insere EN TETE du recap (e-mail unique)."""
+    if not actions:
+        return ""
+    actions = sorted(actions, key=lambda a: a.get("action_deadline") or "9999")
+    rows = "".join(_action_row(a) for a in actions)
+    return f"""
+    <div style="background:#8a1c0a;color:#fff;border-radius:10px;padding:14px 22px;margin-top:18px;">
+      <div style="font-size:16px;font-weight:700;">&#9888; {len(actions)} action(s) a realiser sur tes consultations en cours</div>
+      <div style="opacity:.9;font-size:12px;margin-top:3px;">Demande de complement, question/reponse, changement de date, document a retirer...</div>
+    </div>
+    <div style="background:#fef1d1;border:1px solid #f0d488;border-radius:8px;padding:10px 14px;margin:10px 4px;font-size:13px;color:#6b4e00;line-height:1.5;">
+      &#9733; <b>Pour retirer une action des prochains rappels :</b> clique sur
+      &laquo;&nbsp;Ouvrir l'e-mail&nbsp;&raquo;, puis mets une <b>etoile</b> a l'e-mail dans Gmail.
+      Tant qu'un e-mail n'est pas etoile, son action revient dans chaque rappel.
+    </div>
+    <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;">{rows}</table>"""
+
+
+def build_html(tenders: list, new_ids: set, generated: str, actions: list | None = None) -> str:
     interesting = [t for t in tenders if getattr(t, "category", "") in ("prioritaire", "a_regarder")]
     interesting.sort(key=lambda t: (-getattr(t, "score", 0),
                                     getattr(t, "days_left", None) if getattr(t, "days_left", None) is not None else 9999))
@@ -170,6 +211,8 @@ def build_html(tenders: list, new_ids: set, generated: str) -> str:
     corps += _section("Cibles prioritaires (toutes ouvertes)", prio, new_ids, "#1b9e4b")
     corps += _section("A regarder", regarder, new_ids, "#d98300")
 
+    bloc_actions = _actions_block_html(actions or [])
+
     return f"""<!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8"></head>
 <body style="margin:0;background:#f4f6f8;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1c2733;">
@@ -178,12 +221,13 @@ def build_html(tenders: list, new_ids: set, generated: str) -> str:
       <div style="font-size:18px;font-weight:700;">Veille appels d'offres &mdash; Remplacement baignoire/douche &amp; PMR</div>
       <div style="opacity:.85;font-size:13px;margin-top:4px;">Recap automatique du {generated}</div>
     </div>
+    {bloc_actions}
     <p style="font-size:14px;line-height:1.5;margin:18px 4px;">{intro}</p>
     {corps or '<p style="color:#566;padding:0 4px;">Rien a signaler cette semaine.</p>'}
     <p style="color:#889;font-size:12px;margin-top:26px;padding:0 4px;line-height:1.5;">
-      Sources : BOAMP, TED (UE), marches-publics.info (AWS), flux plateformes (RSS).<br>
+      Sources : BOAMP, TED (UE), marches-publics.info (AWS), alertes e-mail des plateformes, flux RSS.<br>
       Verifie toujours l'avis officiel via le lien avant de t'engager. Les scores sont indicatifs.<br>
-      Le tableau de bord complet (recherche, tri, filtres) est en piece jointe.
+      Le tableau de bord complet (recherche, tri, filtres, statuts) est en piece jointe (ZIP a ouvrir).
     </p>
   </div>
 </body></html>"""
@@ -192,24 +236,28 @@ def build_html(tenders: list, new_ids: set, generated: str) -> str:
 # --------------------------------------------------------------------------
 #  Envoi
 # --------------------------------------------------------------------------
-def send_recap(config, tenders: list, new_ids: set, dashboard_path: str | None = None) -> bool:
-    """Envoie le recap. Retourne True si l'e-mail est parti, False sinon
-    (configuration incomplete ou erreur SMTP). Ne leve jamais d'exception."""
+def send_recap(config, tenders: list, new_ids: set, dashboard_path: str | None = None,
+               actions: list | None = None) -> bool:
+    """Envoie le recap (avec, par defaut, les actions a realiser DANS LE MEME
+    e-mail : un seul envoi = pas de mail qui se perd en route). Retourne True si
+    l'e-mail est parti, False sinon. Ne leve jamais d'exception."""
     destinataire = config.get("email.destinataire", "")
     expediteur = config.get("email.expediteur", "")
     prefixe = config.get("email.objet_prefixe", "Veille AO")
     joindre = config.get("email.joindre_tableau", True)
     envoyer_si_vide = config.get("email.envoyer_si_vide", True)
+    actions = actions or []
 
     interesting = [t for t in tenders if getattr(t, "category", "") in ("prioritaire", "a_regarder")]
     nouveautes = [t for t in interesting if getattr(t, "id", None) in new_ids]
 
-    if not interesting and not envoyer_si_vide:
+    if not interesting and not actions and not envoyer_si_vide:
         print("   (i) Aucune cible cette semaine et 'envoyer_si_vide' = false : e-mail non envoye.")
         return False
 
     if not destinataire or not expediteur:
         print("   /!\\ E-mail non envoye : renseigne email.destinataire et email.expediteur dans config.yaml.")
+        _log_send("(recap)", destinataire or "?", False, "destinataire/expediteur manquant dans config.yaml")
         return False
 
     password = _resolve_password(config)
@@ -219,12 +267,16 @@ def send_recap(config, tenders: list, new_ids: set, dashboard_path: str | None =
         print("   /!\\ E-mail non envoye : mot de passe d'application SMTP introuvable.")
         print(f"       -> definis la variable {env_name}, ou cree le fichier '{fichier}'")
         print("          contenant le mot de passe d'application (voir VEILLE-AUTOMATIQUE-HEBDO.md).")
+        _log_send("(recap)", destinataire, False, "mot de passe d'application introuvable")
         return False
 
     generated = datetime.now().strftime("%d/%m/%Y a %H:%M")
-    html = build_html(tenders, new_ids, generated)
+    html = build_html(tenders, new_ids, generated, actions=actions)
 
-    sujet = f"{prefixe} — {len(interesting)} consultation(s), {len(nouveautes)} nouvelle(s) — {date.today().strftime('%d/%m/%Y')}"
+    sujet = f"{prefixe} — {len(interesting)} consultation(s), {len(nouveautes)} nouvelle(s)"
+    if actions:
+        sujet += f", {len(actions)} action(s) a traiter"
+    sujet += f" — {date.today().strftime('%d/%m/%Y')}"
 
     msg = EmailMessage()
     msg["Subject"] = sujet
@@ -232,29 +284,37 @@ def send_recap(config, tenders: list, new_ids: set, dashboard_path: str | None =
     msg["To"] = destinataire
     msg.set_content(
         f"Veille appels d'offres du {generated}.\n"
-        f"{len(interesting)} consultation(s) ciblees, {len(nouveautes)} nouvelle(s) cette semaine.\n"
+        f"{len(interesting)} consultation(s) ciblees, {len(nouveautes)} nouvelle(s) cette semaine, "
+        f"{len(actions)} action(s) a traiter.\n"
         "Ouvre cet e-mail dans un client HTML pour le detail, ou consulte le tableau joint."
     )
     msg.add_alternative(html, subtype="html")
 
+    # Piece jointe : le tableau de bord est joint en ZIP. (Un .html brut contenant
+    # du JavaScript est parfois bloque ou mis en spam par Gmail -> le recap
+    # n'arrivait pas. Le ZIP passe les filtres et s'ouvre d'un double-clic.)
     if joindre and dashboard_path and os.path.exists(dashboard_path):
         try:
-            with open(dashboard_path, "rb") as f:
-                data = f.read()
-            msg.add_attachment(data, maintype="text", subtype="html",
-                               filename="tableau-de-bord-veille.html")
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+                z.write(dashboard_path, "tableau-de-bord-veille.html")
+            msg.add_attachment(buf.getvalue(), maintype="application", subtype="zip",
+                               filename="tableau-de-bord-veille.zip")
         except Exception:
             pass  # l'e-mail part quand meme sans la piece jointe
 
-    if _smtp_send(config, msg, password):
-        print(f"   E-mail envoye a {destinataire} ({len(interesting)} cible(s), {len(nouveautes)} nouvelle(s)).")
+    ok, err = _smtp_send(config, msg, password)
+    _log_send(sujet, destinataire, ok, err)
+    if ok:
+        print(f"   E-mail envoye a {destinataire} ({len(interesting)} cible(s), "
+              f"{len(nouveautes)} nouvelle(s), {len(actions)} action(s)).")
         return True
     return False
 
 
-def _smtp_send(config, msg: EmailMessage, password: str) -> bool:
+def _smtp_send(config, msg: EmailMessage, password: str) -> tuple[bool, str]:
     """Ouvre la connexion SMTP (STARTTLS ou SSL) et envoie le message.
-    Ne leve jamais d'exception ; retourne True si l'envoi a reussi."""
+    Ne leve jamais d'exception ; retourne (reussi, detail_erreur)."""
     hote = config.get("email.smtp_hote", "smtp.gmail.com")
     port = int(config.get("email.smtp_port", 587) or 587)
     securite = str(config.get("email.securite", "starttls")).lower()
@@ -272,14 +332,14 @@ def _smtp_send(config, msg: EmailMessage, password: str) -> bool:
                 s.ehlo()
                 s.login(expediteur, password)
                 s.send_message(msg)
-        return True
-    except smtplib.SMTPAuthenticationError:
+        return True, ""
+    except smtplib.SMTPAuthenticationError as e:
         print("   /!\\ Echec d'authentification SMTP : verifie l'adresse expediteur et le")
         print("       MOT DE PASSE D'APPLICATION (pas le mot de passe habituel du compte).")
-        return False
+        return False, f"authentification SMTP refusee : {e}"
     except Exception as e:  # noqa: BLE001
         print(f"   /!\\ Envoi e-mail impossible : {e}")
-        return False
+        return False, str(e)
 
 
 def _action_row(a: dict) -> str:
@@ -345,8 +405,9 @@ def _build_actions_html(actions: list) -> str:
 
 
 def send_actions(config, actions: list) -> bool:
-    """Envoie l'e-mail 'actions a realiser' (notifications sur consultations en
-    cours). Retourne True si parti. Ne leve jamais d'exception."""
+    """Envoie l'e-mail SEPARE 'actions a realiser' (utilise seulement si
+    email.email_unique = false : par defaut les actions sont integrees au recap).
+    Retourne True si parti. Ne leve jamais d'exception."""
     if not actions:
         return False
     expediteur = config.get("email.expediteur", "")
@@ -359,8 +420,9 @@ def send_actions(config, actions: list) -> bool:
         print("   /!\\ E-mail 'actions' non envoye : mot de passe d'application introuvable.")
         return False
 
+    sujet = f"[ACTION] {len(actions)} action(s) a realiser sur tes consultations en cours"
     msg = EmailMessage()
-    msg["Subject"] = f"[ACTION] {len(actions)} action(s) a realiser sur tes consultations en cours"
+    msg["Subject"] = sujet
     msg["From"] = expediteur
     msg["To"] = destinataire
     msg.set_content(
@@ -369,7 +431,9 @@ def send_actions(config, actions: list) -> bool:
         "Ouvre cet e-mail en HTML pour le detail."
     )
     msg.add_alternative(_build_actions_html(actions), subtype="html")
-    if _smtp_send(config, msg, password):
+    ok, err = _smtp_send(config, msg, password)
+    _log_send(sujet, destinataire, ok, err)
+    if ok:
         print(f"   E-mail 'actions' envoye a {destinataire} ({len(actions)} action(s)).")
         return True
     return False

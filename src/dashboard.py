@@ -109,6 +109,12 @@ _TEMPLATE = """<!DOCTYPE html>
   .d-soon {{ color:var(--orange); }}
   .d-ok {{ color:var(--vert); }}
   .lien a {{ color:var(--bleu); text-decoration:none; font-weight:600; white-space:nowrap; }}
+  select.st {{ border:1px solid #cdd5dd; border-radius:6px; padding:4px 6px; font-size:12px;
+              background:#fff; cursor:pointer; }}
+  select.st.v-go {{ background:var(--vert-bg); color:var(--vert); border-color:var(--vert); font-weight:700; }}
+  select.st.v-a_etudier {{ background:#fff4d6; color:#9a6b00; border-color:#f0d488; font-weight:700; }}
+  select.st.v-depose {{ background:#e8f0fb; color:var(--bleu); border-color:var(--bleu); font-weight:700; }}
+  select.st.v-nogo, select.st.v-ignore {{ background:#f1f1f1; color:#888; }}
   .detail {{ display:none; background:#f8fafc; }}
   .detail td {{ padding:14px 18px; color:#33414e; }}
   .empty {{ padding:40px; text-align:center; color:var(--gris); }}
@@ -134,6 +140,7 @@ _TEMPLATE = """<!DOCTYPE html>
   <button class="btn" data-f="prioritaire">Prioritaires</button>
   <button class="btn" data-f="a_regarder">A regarder</button>
   <button class="btn" data-f="semaine">Cette semaine (&lt;7j)</button>
+  <button class="btn" data-f="a_traiter">A traiter</button>
 </div>
 
 <table id="tbl">
@@ -148,6 +155,7 @@ _TEMPLATE = """<!DOCTYPE html>
     <th data-k="deadline">Limite</th>
     <th data-k="days_left">Jours</th>
     <th data-k="source">Source</th>
+    <th data-k="statut">Statut</th>
     <th>Lien</th>
   </tr></thead>
   <tbody id="body"></tbody>
@@ -164,6 +172,25 @@ const DATA = {data};
 const LABELS = {labels};
 let state = {{ filter:"tous", q:"", sortKey:"score", sortDir:-1 }};
 
+// --- Suivi de STATUT par marche (persistant dans le navigateur, survit aux
+//     regenerations du tableau : la cle est l'identifiant du marche). ---
+const ST_KEY = "veille-ao-statuts";
+const ST_OPTIONS = [["","Nouveau"],["a_etudier","A etudier"],["go","GO - a chiffrer"],
+                    ["depose","Depose"],["nogo","No-go"],["ignore","Ecarte"]];
+let STATUTS = {{}};
+try {{ STATUTS = JSON.parse(localStorage.getItem(ST_KEY)||"{{}}"); }} catch(e) {{ STATUTS = {{}}; }}
+DATA.forEach(t=>{{ t.statut = STATUTS[t.id]||""; }});
+function saveStatut(id, val) {{
+  if (val) STATUTS[id]=val; else delete STATUTS[id];
+  try {{ localStorage.setItem(ST_KEY, JSON.stringify(STATUTS)); }} catch(e) {{}}
+  const t = DATA.find(x=>x.id===id); if (t) t.statut = val;
+  render();
+}}
+function statutSelect(t) {{
+  const opts = ST_OPTIONS.map(([v,l])=>`<option value="${{v}}" ${{t.statut===v?"selected":""}}>${{l}}</option>`).join("");
+  return `<select class="st ${{t.statut?("v-"+t.statut):""}}" data-id="${{esc(t.id)}}">${{opts}}</select>`;
+}}
+
 function daysClass(d) {{
   if (d===null||d===undefined) return "d-soon";
   if (d<0) return "d-urgent"; if (d<=7) return "d-urgent";
@@ -173,7 +200,7 @@ function daysText(d) {{
   if (d===null||d===undefined) return "a verifier";
   if (d<0) return "echu"; return d + " j";
 }}
-function esc(s) {{ return (s||"").replace(/[&<>]/g, c=>({{"&":"&amp;","<":"&lt;",">":"&gt;"}}[c])); }}
+function esc(s) {{ return (s||"").replace(/[&<>"]/g, c=>({{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}}[c])); }}
 
 function tags(t) {{
   let h="";
@@ -192,6 +219,7 @@ function matchFilter(t) {{
   if (state.filter==="prioritaire" && t.category!=="prioritaire") return false;
   if (state.filter==="a_regarder" && t.category!=="a_regarder") return false;
   if (state.filter==="semaine" && !(t.days_left!==null && t.days_left>=0 && t.days_left<=7)) return false;
+  if (state.filter==="a_traiter" && ["go","depose","nogo","ignore"].includes(t.statut)) return false;
   if (state.q) {{
     const blob = (t.title+" "+t.reference+" "+t.buyer+" "+t.department+" "+t.source+" "+(t.matched||[]).join(" ")).toLowerCase();
     if (!blob.includes(state.q.toLowerCase())) return false;
@@ -225,11 +253,12 @@ function render() {{
       <td>${{esc(t.deadline)||"&mdash;"}}</td>
       <td class="days ${{daysClass(t.days_left)}}">${{daysText(t.days_left)}}</td>
       <td>${{esc(t.source)}}</td>
+      <td>${{statutSelect(t)}}</td>
       <td class="lien">${{t.url?`<a href="${{t.url}}" target="_blank">Ouvrir &#8599;</a>`:"&mdash;"}}</td>`;
     body.appendChild(tr);
     const det = document.createElement("tr");
     det.className = "detail"; det.id = "det"+i;
-    det.innerHTML = `<td colspan="11">
+    det.innerHTML = `<td colspan="12">
        <b>Reference :</b> <span class="ref">${{esc(t.reference)||"non precisee"}}</span> &nbsp;|&nbsp; <b>Identifiant :</b> ${{esc(t.id)}}<br><br>
        <b>Mots-cles detectes :</b> ${{(t.matched||[]).map(m=>`<span class="tag">${{esc(m)}}</span>`).join("")||"&mdash;"}}<br><br>
        <b>Categorie :</b> ${{LABELS[t.category]||t.category}} &nbsp;|&nbsp; <b>CPV :</b> ${{(t.cpv||[]).join(", ")||"non precise"}}<br><br>
@@ -245,6 +274,9 @@ function toggle(i) {{
 }}
 
 document.getElementById("q").addEventListener("input", e=>{{ state.q=e.target.value; render(); }});
+document.getElementById("body").addEventListener("change", e=>{{
+  if (e.target.classList.contains("st")) saveStatut(e.target.dataset.id, e.target.value);
+}});
 document.querySelectorAll(".btn").forEach(b=>b.addEventListener("click", ()=>{{
   document.querySelectorAll(".btn").forEach(x=>x.classList.remove("active"));
   b.classList.add("active"); state.filter=b.dataset.f; render();

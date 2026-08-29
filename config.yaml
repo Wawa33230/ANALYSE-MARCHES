@@ -485,8 +485,13 @@ email:
   securite: "starttls"                 # "starttls" (port 587, Gmail) ou "ssl" (port 465)
   mot_de_passe_env: "VEILLE_SMTP_PASSWORD"    # variable d'environnement lue en priorite
   mot_de_passe_fichier: "motdepasse-mail.txt" # sinon, fichier local (a NE PAS committer)
-  joindre_tableau: true                # joindre le tableau de bord HTML complet au mail
+  joindre_tableau: true                # joindre le tableau de bord complet au mail (en ZIP :
+                                       #  un .html brut avec du JavaScript est parfois bloque
+                                       #  ou mis en spam par Gmail -> le recap n'arrivait pas)
   envoyer_si_vide: true                # envoyer meme s'il n'y a aucune nouveaute cette semaine
+  email_unique: true                   # true (recommande) = UN SEUL e-mail contenant le recap
+                                       #  ET les actions a realiser. false = deux e-mails separes
+                                       #  (ancien comportement, moins fiable).
   objet_prefixe: "Veille AO"
 
 # ===========================================================================
@@ -509,14 +514,34 @@ mail_alertes:
   # PAS comme nouveaux marches, mais declenchent un e-mail "action a realiser".
   email_actions: true        # false = desactiver l'e-mail "action a realiser"
   actions_destinataire: ""   # vide = meme destinataire que le recap (email.destinataire)
-  # On ne lit QUE les e-mails venant de ces expediteurs (securite anti-bruit).
-  # Ajoute/retire selon les plateformes ou tu crees des alertes.
+  # Filtre des expediteurs :
+  #  - si on lit un LIBELLE dedie (ex. "Notifications AO"), TOUS les e-mails du
+  #    libelle sont pris en compte (c'est ton filtre Gmail qui decide de ce qui y
+  #    entre) -> une nouvelle plateforme est integree automatiquement, rien a faire ici.
+  #  - si on lit INBOX, seuls les expediteurs listes ci-dessous sont pris en compte.
+  #  Pour forcer un comportement : expediteurs_stricts: true (toujours filtrer)
+  #  ou false (ne jamais filtrer).
+  # expediteurs_stricts: false
   expediteurs:
     - ternum-bfc.fr
     - achatpublic.com
     - maximilien.fr
     - marches-securises.fr
     - e-marchespublics.com
+    - dematis.com              # editeur de e-marchespublics
     - megalis.bretagne.bzh
-    - marches-publics.gouv.fr
-    - atexo
+    - marches-publics.gouv.fr  # PLACE (Etat)
+    - atexo                    # moteur de nombreuses plateformes regionales
+    - marches-publics.info     # AWS
+    - aws-achat.info           # AWS (autre domaine d'envoi)
+    - agysoft.fr               # AWS / Marco
+    - boamp.fr                 # alertes e-mail du BOAMP
+    - ted.europa.eu            # alertes e-mail TED (UE)
+    - francemarches.com
+    - klekoon.com
+    - marchesonline.com
+    - centraledesmarches.com
+    - achatsolutions.fr
+    - spigao.com
+    - vecteurplus.com
+    - e-bourgogne.fr
