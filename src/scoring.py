@@ -141,19 +141,25 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
 
     excluded = False
 
-    # 6b) Filtrage par TYPE D'ACHETEUR : on ne veut que des bailleurs sociaux.
+    # 6b) Filtrage par TYPE D'ACHETEUR (optionnel).
+    #     Par defaut on NE restreint PAS : on ratisse large (tous acheteurs, toutes
+    #     procedures dont MAPA) et le SCORING fait l'entonnoir. Les deux exclusions
+    #     ci-dessous ne s'appliquent QUE si on les active explicitement en config.
     if not is_bailleur:
-        if _found(scoring_cfg.get("mots_cles_collectivites", []), buyer_n):
+        if scoring_cfg.get("exclure_collectivites", False) and _found(
+            scoring_cfg.get("mots_cles_collectivites", []), buyer_n
+        ):
             excluded = True
             flags.append("non-bailleur (collectivite)")
-        elif scoring_cfg.get("uniquement_bailleurs", True):
+        elif scoring_cfg.get("uniquement_bailleurs", False):
             if buyer_n.strip():
-                # acheteur identifie mais pas un bailleur (DRAC, ministere, CROUS, CHU...)
                 excluded = True
                 flags.append("non-bailleur")
             else:
-                # acheteur non recupere : on garde mais on signale a verifier
                 flags.append("acheteur a verifier")
+        elif _found(scoring_cfg.get("mots_cles_collectivites", []), buyer_n):
+            # Gardé, mais signalé : ce n'est pas un bailleur social identifié.
+            flags.append("acheteur : collectivite")
 
     # 7a) Exclusion CONSTRUCTION / GROS OEUVRE (tu fais UNIQUEMENT de la renovation SDB).
     #     On ecarte SAUF si un vrai mot-cle salle de bain est present.

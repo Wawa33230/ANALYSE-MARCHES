@@ -58,8 +58,8 @@ plateformes_web:
     champ_motcle: "searchCslBean.intitule"
     encodage: "ISO-8859-15"
     parseur: cartes
-    actif: false
-    calibre: false
+    actif: true          # SONDE : au 1er lancement, enregistre data/achatpublic-debug.html
+    calibre: false       #  (envoie-moi ce fichier pour que je finalise le lecteur achatpublic)
 
   # Scraping abandonne (site JS / connexion refusee) -> utiliser leurs alertes RSS.
   - nom: "maximilien.fr (IDF)"
@@ -441,12 +441,20 @@ scoring:
     - faience
     - carreleur
 
-  # --- Ne garder QUE les bailleurs sociaux ---
-  #  true  = un marche est ecarte si l'acheteur n'est PAS identifie comme bailleur
-  #          (ni client connu, ni indice habitat/oph/hlm/esh...). Elimine DRAC,
-  #          ministeres, CROUS, CHU, colleges, communes, regions, departements...
-  #  false = on garde tout (sauf collectivites listees plus haut).
-  uniquement_bailleurs: true
+  # --- Restreindre aux bailleurs sociaux ? ---
+  #  PHILOSOPHIE : on RATISSE LARGE (tous acheteurs, toutes procedures dont MAPA) et
+  #  c'est le SCORING (mots-cles + CPV) qui fait l'entonnoir. La liste de bailleurs
+  #  ne sert donc QU'A donner un bonus "client connu" + un filet de rappel BOAMP,
+  #  JAMAIS a filtrer.
+  #  false = on garde tout marche pertinent, quel que soit l'acheteur (RECOMMANDE).
+  #  true  = (ancien comportement) ecarte tout acheteur non identifie comme bailleur.
+  uniquement_bailleurs: false
+
+  # --- Exclure les collectivites (mairie, commune, departement, region...) ? ---
+  #  false = on garde meme les collectivites si le marche colle a nos criteres
+  #          (une commune / un CCAS / un foyer peut lancer un marche PMR salle de bain).
+  #  true  = on ecarte les acheteurs "collectivite" non identifies comme bailleurs.
+  exclure_collectivites: false
 
   # --- Seuils de categorisation (sur le score final, de 0 a 100) ---
   seuil_prioritaire: 55      # >= 55  => CIBLE PRIORITAIRE (vert)
