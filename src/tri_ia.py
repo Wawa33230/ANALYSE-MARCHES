@@ -93,6 +93,17 @@ Regle d'or : ce qui compte, c'est l'OBJET du marche (adapter une salle de bain d
 logement pour une personne agee/handicapee), PAS uniquement le type d'acheteur.
 Un bailleur social qui fait de la maintenance de chaufferie = hors cible ; une
 mairie qui adapte les salles de bain de logements communaux = cible.
+
+EXEMPLES REELS de marches CIBLES (a noter HAUT), pour te calibrer :
+  - "Accord-cadre a bons de commande de travaux de MAINTIEN A DOMICILE dans des
+    logements du parc locatif social" (bailleur SEM) -> prioritaire ~92.
+  - "Accord-cadre pour la realisation de travaux d'ADAPTATION pour personnes a
+    mobilite reduite" (bailleur) -> prioritaire ~95.
+  - "Accord-cadre a bons de commande pour les travaux d'ENTRETIEN COURANT des
+    logements en electricite, PLOMBERIE et menuiseries" (bailleur social) ->
+    a_regarder a prioritaire ~75 : un accord-cadre d'entretien/plomberie de
+    logements d'un bailleur peut inclure des bons de commande de renovation de
+    salle de bain ; ne PAS l'ecarter comme simple maintenance.
 """
 
 BAREME = """\
