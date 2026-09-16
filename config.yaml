@@ -512,7 +512,12 @@ ia:
 # ===========================================================================
 email:
   envoyer_recap: false                 # true = envoyer un mail a CHAQUE lancement (sinon : seulement avec --email / tache hebdo)
-  destinataire: "loyk.duporge@adomsenior.fr"   # a QUI envoyer le recap (change si besoin)
+  # A QUI envoyer le recap. Tu peux mettre PLUSIEURS destinataires, soit sous
+  # forme de liste (comme ci-dessous), soit sur une ligne separee par des virgules
+  # ("a@x.fr, b@y.fr").
+  destinataire:
+    - "loyk.duporge@adomsenior.fr"
+    - "lyes.ouhaddad@adomsenior.fr"
   expediteur:   "loyk.duporge@adomsenior.fr"   # compte Google Workspace qui envoie (= identifiant SMTP)
   smtp_hote: "smtp.gmail.com"          # Google Workspace = meme serveur que Gmail
   smtp_port: 587

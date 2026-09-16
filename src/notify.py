@@ -17,11 +17,32 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import smtplib
 import ssl
 import zipfile
 from datetime import date, datetime
 from email.message import EmailMessage
+
+
+def _recipients(value) -> list[str]:
+    """Normalise le(s) destinataire(s) en liste d'adresses.
+
+    Accepte :
+      - une chaine simple : "a@x.fr"
+      - une chaine multiple : "a@x.fr, b@y.fr" (virgule, point-virgule ou espace)
+      - une liste YAML : ["a@x.fr", "b@y.fr"]
+    Les doublons sont retires en conservant l'ordre."""
+    if not value:
+        return []
+    items = value if isinstance(value, (list, tuple)) else re.split(r"[,;\s]+", str(value))
+    out, seen = [], set()
+    for it in items:
+        a = str(it).strip()
+        if a and a.lower() not in seen:
+            seen.add(a.lower())
+            out.append(a)
+    return out
 
 CATEGORY_LABEL = {
     "prioritaire": "Cible prioritaire",
@@ -241,7 +262,8 @@ def send_recap(config, tenders: list, new_ids: set, dashboard_path: str | None =
     """Envoie le recap (avec, par defaut, les actions a realiser DANS LE MEME
     e-mail : un seul envoi = pas de mail qui se perd en route). Retourne True si
     l'e-mail est parti, False sinon. Ne leve jamais d'exception."""
-    destinataire = config.get("email.destinataire", "")
+    recipients = _recipients(config.get("email.destinataire", ""))
+    destinataire = ", ".join(recipients)
     expediteur = config.get("email.expediteur", "")
     prefixe = config.get("email.objet_prefixe", "Veille AO")
     joindre = config.get("email.joindre_tableau", True)
@@ -411,7 +433,8 @@ def send_actions(config, actions: list) -> bool:
     if not actions:
         return False
     expediteur = config.get("email.expediteur", "")
-    destinataire = config.get("mail_alertes.actions_destinataire", "") or config.get("email.destinataire", "")
+    dest_cfg = config.get("mail_alertes.actions_destinataire", "") or config.get("email.destinataire", "")
+    destinataire = ", ".join(_recipients(dest_cfg))
     if not expediteur or not destinataire:
         print("   /!\\ E-mail 'actions' non envoye : expediteur/destinataire manquant.")
         return False
