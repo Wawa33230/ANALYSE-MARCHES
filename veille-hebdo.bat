@@ -37,6 +37,16 @@ if not exist ".venv\Scripts\python.exe" (
   call ".venv\Scripts\activate.bat"
 )
 
+rem --- Auto-reparation des dependances : si une librairie de requirements.txt
+rem     manque dans le .venv (typiquement 'anthropic', ajoute apres coup pour
+rem     l'agent IA), on (re)installe requirements.txt. Idempotent : si tout est
+rem     deja present, cette verification ne fait rien (aucun cout, ~1 seconde).
+python -c "import anthropic, yaml, requests" >nul 2>nul
+if errorlevel 1 (
+  echo [%date% %time%] Dependances manquantes detectees -> installation... >> "veille-hebdo.log"
+  python -m pip install -r requirements.txt >> "veille-hebdo.log" 2>&1
+)
+
 echo [%date% %time%] --- Lancement de la veille hebdomadaire --- >> "veille-hebdo.log"
 python -m src.main --no-open --email >> "veille-hebdo.log" 2>&1
 echo [%date% %time%] --- Termine (code %errorlevel%) --- >> "veille-hebdo.log"
