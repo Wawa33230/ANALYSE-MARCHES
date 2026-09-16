@@ -27,14 +27,15 @@ BASE = "https://www.marches-publics.info"
 SEARCH_URL = BASE + "/Annonces/rechercher"      # formulaire de recherche
 LISTER_URL = BASE + "/Annonces/lister"          # resultats (POST du formulaire)
 
-# Requetes ciblees sur ton metier (renovation de salle de bain), envoyees dans le
-# champ "mot-cle" (txtLibre) du formulaire AWS.
-QUERIES = [
+# Requetes envoyees dans le champ "mot-cle" (txtLibre) du formulaire AWS.
+# Repli si la config est indisponible (ex: appel hors contexte).
+DEFAULT_QUERIES = [
     "salle de bain",
     "salle de bains",
     "accessibilite",
     "adaptation",
     "adaptation logement",
+    "maintien a domicile",
     "baignoire",
     "douche",
     "PMR",
@@ -43,6 +44,28 @@ QUERIES = [
     "perte d'autonomie",
     "sanitaire",
 ]
+
+
+def _queries(config) -> list[str]:
+    """Les mots-cles de recherche AWS sont DERIVES de la config (mots_cles
+    prioritaires + secondaires), pour rester synchronises avec le scoring : tout
+    mot-cle cible (ex: 'maintien a domicile') est ainsi cherche sur AWS aussi.
+    Sans cela, un marche 100% cible dont le titre n'emploie qu'un mot absent de
+    la liste figee passait inapercu (cas SEM4V 'maintien a domicile')."""
+    try:
+        sc = config.scoring or {}
+    except Exception:  # noqa: BLE001
+        sc = {}
+    base = list(sc.get("mots_cles_prioritaires", []) or []) + \
+        list(sc.get("mots_cles_secondaires", []) or [])
+    out, seen = [], set()
+    for kw in base + DEFAULT_QUERIES:
+        k = (kw or "").strip()
+        kl = k.lower()
+        if kl and kl not in seen:
+            seen.add(kl)
+            out.append(k)
+    return out or DEFAULT_QUERIES
 
 # Analyse par "cartes" : chaque annonce commence par "Publie le ..." sur le site AWS.
 CARD_SPLIT = re.compile(r"Publi[ée]\s+le", re.IGNORECASE)
@@ -191,7 +214,7 @@ def fetch(config) -> list[Tender]:
     seen: set[str] = set()
     debug_html = ""
 
-    for q in QUERIES:
+    for q in _queries(config):
         for page in range(1, MAX_PAGES + 1):
             try:
                 resp = http_post_form(LISTER_URL, _form_payload(q, page),
