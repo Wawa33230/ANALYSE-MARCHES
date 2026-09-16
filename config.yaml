@@ -489,7 +489,8 @@ affichage:
 #  cle-ia.txt (ignore par git, comme motdepasse-mail.txt).
 # ===========================================================================
 ia:
-  actif: false                 # true = activer l'agent IA (necessite une cle API Claude)
+  actif: true                  # true = activer l'agent IA (necessite une cle API Claude ;
+                               #  sans cle -> repli automatique sur le score par mots-cles)
   modele: "claude-haiku-4-5"   # economique et rapide pour de la classification.
                                #  Plus fin (mais plus cher) : "claude-sonnet-5" ou "claude-opus-5".
   taille_lot: 12               # nombre de marches analyses par appel (compromis cout/robustesse)
