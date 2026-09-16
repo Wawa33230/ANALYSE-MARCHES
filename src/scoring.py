@@ -208,12 +208,21 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
     elif "fourniture" in nature:
         score -= 6
 
-    # 8) Signal carrelage (tu poses des panneaux, pas du carrelage)
+    # 8) Signal CARRELAGE / FAIENCE.
+    #  IMPORTANT (regle metier) : les marches de salle de bain sont TRES rarement
+    #  publies en "panneaux muraux". Ils sont le plus souvent publies en FAIENCE,
+    #  avec VARIANTES AUTORISEES -> ce qui permet a ADOMSENIOR de repondre en
+    #  panneaux muraux. Un marche faience est donc une CIBLE, PAS un marche a
+    #  ecarter ni a retrograder. On le SIGNALE seulement (rappel : proposer la
+    #  variante panneau), sans penalite.
     carr_hits = _found(scoring_cfg.get("mots_cles_carrelage", []), text)
     if carr_hits:
-        flags.append("carrelage/faience")
-        if not pan_hits:  # carrelage sans alternative panneau -> on retrograde un peu
-            score -= 8
+        flags.append("faience -> repondre en variante panneau")
+
+    # 8b) VARIANTES autorisees = notre porte d'entree sur les marches faience.
+    #     Signal informatif (le jugement fin est laisse a l'agent IA).
+    if re.search(r"\bvariante", text):
+        flags.append("variantes possibles")
 
     # 9) Mention amiante (frequent sur ce type de marche -> rappel SS4)
     if "amiante" in text:

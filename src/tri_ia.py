@@ -67,6 +67,16 @@ Marche CIBLE (note haute) :
     plomberie sanitaire liee a l'adaptation, accord-cadre "adaptation des logements"
     ou "travaux d'accessibilite" incluant un lot salle de bain.
 
+REGLE FAIENCE / VARIANTES (tres importante) :
+  - Les marches de salle de bain sont TRES RAREMENT publies en "panneaux muraux".
+    Ils sont le plus souvent publies en FAIENCE / CARRELAGE, souvent avec
+    "VARIANTES AUTORISEES". ADOMSENIOR repond alors EN VARIANTE avec ses panneaux
+    muraux. Un marche de FAIENCE / CARRELAGE de SALLE DE BAIN (surtout en logement,
+    surtout si des variantes sont autorisees) est donc une CIBLE a note HAUTE, il
+    ne faut SURTOUT PAS l'ecarter parce qu'il parle de faience/carrelage.
+  - Nuance : "faience/carrelage" hors salle de bain de logement (ex : carrelage de
+    hall, de gymnase, de piscine, de cuisine collective) reste hors cible.
+
 Marche HORS CIBLE (note basse) :
   - construction neuve, gros oeuvre, rehabilitation lourde tous corps d'etat non
     centree sur la salle de bain ;
@@ -76,7 +86,8 @@ Marche HORS CIBLE (note basse) :
   - voirie, espaces verts, toiture, couverture, etancheite, ravalement ;
   - accessibilite de BATIMENTS PUBLICS / ERP / voirie / etablissements (ce n'est
     PAS du logement adapte : une rampe de mairie ou un ascenseur d'ecole = hors cible) ;
-  - fourniture seule sans pose, carrelage/faience seul sans adaptation.
+  - fourniture seule sans pose ; carrelage/faience NON lie a une salle de bain de
+    logement (ex : sols de hall, gymnase, piscine, cuisine collective).
 
 Regle d'or : ce qui compte, c'est l'OBJET du marche (adapter une salle de bain de
 logement pour une personne agee/handicapee), PAS uniquement le type d'acheteur.
