@@ -95,6 +95,8 @@ _TEMPLATE = """<!DOCTYPE html>
   .hors_cible .score {{ background:var(--rouge-bg); color:var(--rouge); }}
   .obj {{ font-weight:600; color:#13202e; cursor:pointer; }}
   .obj:hover {{ text-decoration:underline; }}
+  .ia {{ font-size:12px; color:#5a4b8a; background:#f0edfa; border-left:3px solid #7c6bb0;
+        padding:3px 8px; margin:4px 0 2px; border-radius:0 5px 5px 0; }}
   .ref {{ font-family:Consolas,Menlo,monospace; font-size:12px; background:#eef3f8;
          color:#1f4e79; padding:2px 6px; border-radius:4px; white-space:nowrap;
          user-select:all; }}
@@ -215,6 +217,11 @@ function tags(t) {{
   return h;
 }}
 
+function iaRaison(t) {{
+  if (!t.ia_raison) return "";
+  return `<div class="ia">🤖 ${{esc(t.ia_raison)}}</div>`;
+}}
+
 function matchFilter(t) {{
   if (state.filter==="prioritaire" && t.category!=="prioritaire") return false;
   if (state.filter==="a_regarder" && t.category!=="a_regarder") return false;
@@ -244,7 +251,7 @@ function render() {{
     tr.className = "t " + t.category;
     tr.innerHTML = `
       <td><span class="score">${{t.score}}</span></td>
-      <td><span class="obj" onclick="toggle(${{i}})">${{esc(t.title)}}</span><div>${{tags(t)}}</div></td>
+      <td><span class="obj" onclick="toggle(${{i}})">${{esc(t.title)}}</span>${{iaRaison(t)}}<div>${{tags(t)}}</div></td>
       <td class="ref" title="Reference a rechercher sur le site">${{esc(t.reference)||"&mdash;"}}</td>
       <td>${{esc(t.buyer)||"&mdash;"}}</td>
       <td>${{esc(t.department)||"&mdash;"}}</td>
@@ -262,6 +269,7 @@ function render() {{
        <b>Reference :</b> <span class="ref">${{esc(t.reference)||"non precisee"}}</span> &nbsp;|&nbsp; <b>Identifiant :</b> ${{esc(t.id)}}<br><br>
        <b>Mots-cles detectes :</b> ${{(t.matched||[]).map(m=>`<span class="tag">${{esc(m)}}</span>`).join("")||"&mdash;"}}<br><br>
        <b>Categorie :</b> ${{LABELS[t.category]||t.category}} &nbsp;|&nbsp; <b>CPV :</b> ${{(t.cpv||[]).join(", ")||"non precise"}}<br><br>
+       ${{t.ia_note!==null&&t.ia_note!==undefined?`<b>🤖 Analyse IA :</b> note ${{t.ia_note}}/100 &mdash; ${{esc(t.ia_raison)||""}} <span style="color:#889">(score mots-cles : ${{t.score_mots_cles}})</span><br><br>`:""}}
        <b>Description :</b> ${{esc(t.description)||"&mdash;"}}</td>`;
     body.appendChild(det);
   }});

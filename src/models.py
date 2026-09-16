@@ -32,5 +32,15 @@ class Tender:
     flags: list = field(default_factory=list)    # alertes : "carrelage", "amiante", "exclusion"...
     days_left: Optional[int] = None              # nombre de jours avant la date limite
 
+    # --- Reclassement par l'AGENT IA (optionnel, src/tri_ia.py) ---
+    #  Quand l'agent IA est actif, il RELIT chaque marche et attribue sa propre note
+    #  de pertinence (jugement metier, pas juste des mots-cles). score/category sont
+    #  alors remplaces par le verdict IA ; le score par mots-cles est conserve ici
+    #  pour transparence.
+    score_mots_cles: Optional[int] = None        # score initial (moteur mots-cles), avant IA
+    ia_note: Optional[int] = None                # note 0-100 attribuee par l'agent IA
+    ia_categorie: str = ""                        # categorie IA : prioritaire/a_regarder/hors_cible
+    ia_raison: str = ""                           # justification IA en une phrase
+
     def to_dict(self) -> dict:
         return asdict(self)

@@ -470,6 +470,36 @@ affichage:
   garder_hors_cible: false   # true = afficher aussi les marches "hors cible" dans le tableau
 
 # ===========================================================================
+#  AGENT IA de RECLASSEMENT  (optionnel, mais TRES recommande)
+#  Le scoring par mots-cles ci-dessus est rapide et gratuit, mais imprecis :
+#  un marche parfait peut plafonner a ~75, et "ratisser large" fait remonter du
+#  bruit (une collectivite qui contient juste "PMR" mais qui n'est pas une salle
+#  de bain de logement). L'agent IA RELIT chaque marche (objet + acheteur + CPV
+#  + description) et attribue une note de pertinence "comme un humain", plus une
+#  raison en une phrase. Il fait alors AUTORITE (remplace le score/categorie).
+#
+#  - Il appelle le modele Claude via le SDK anthropic (pip install anthropic).
+#  - Il est OPTIONNEL : sans cle API / hors-ligne / erreur -> on garde le score
+#    mots-cles (rien ne casse).
+#  - Cout maitrise : classement par lots + CACHE (data/ia-cache.json) : un marche
+#    deja juge n'est jamais renote -> les relances quotidiennes coutent ~0.
+#
+#  SECURITE : ne mets JAMAIS ta cle API ici (ce fichier est versionne). Mets-la
+#  dans la variable d'environnement VEILLE_IA_KEY, ou dans le fichier local
+#  cle-ia.txt (ignore par git, comme motdepasse-mail.txt).
+# ===========================================================================
+ia:
+  actif: false                 # true = activer l'agent IA (necessite une cle API Claude)
+  modele: "claude-haiku-4-5"   # economique et rapide pour de la classification.
+                               #  Plus fin (mais plus cher) : "claude-sonnet-5" ou "claude-opus-5".
+  taille_lot: 12               # nombre de marches analyses par appel (compromis cout/robustesse)
+  cle_env: "VEILLE_IA_KEY"     # variable d'environnement lue en priorite
+  cle_fichier: "cle-ia.txt"    # sinon, fichier local (a NE PAS committer)
+  cache_fichier: "data/ia-cache.json"   # memoire des verdicts (evite de renoter chaque jour)
+  # definition_cible: |        # (avance) surcharge la definition de la cible metier
+  #   Tu es l'assistant de veille de ...
+
+# ===========================================================================
 #  E-MAIL AUTOMATIQUE  (recap hebdomadaire des consultations interessantes)
 #  Mode d'emploi complet : VEILLE-AUTOMATIQUE-HEBDO.md
 #  - L'e-mail n'est envoye QUE lors d'une execution "python -m src.main --email"

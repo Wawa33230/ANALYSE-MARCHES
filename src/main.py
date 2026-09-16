@@ -108,9 +108,19 @@ def main(argv=None):
     tenders = collect(config, args.demo)
     tenders = _dedupe(tenders)
 
-    # Scoring
+    # Scoring (moteur mots-cles : rapide, gratuit, sert de base / de repli)
     for t in tenders:
         score_tender(t, scoring_cfg)
+
+    # Reclassement par l'AGENT IA (optionnel) : relit chaque marche et remplace
+    # le score/categorie par un jugement de pertinence metier. Sans effet si
+    # l'IA est desactivee, sans cle API, ou hors-ligne (on garde le score mots-cles).
+    try:
+        from . import tri_ia
+        if tri_ia.is_enabled(config):
+            tenders = tri_ia.reclasser(tenders, config)
+    except Exception as e:  # noqa: BLE001
+        print(f">> Agent IA ignore ({e}) : score par mots-cles conserve.")
 
     # Filtrage : marches echus
     if config.get("recherche.masquer_echus", True):

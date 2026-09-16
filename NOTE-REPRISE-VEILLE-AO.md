@@ -111,7 +111,26 @@ Puis vérifier `data/derniere-execution.txt` et `data/journal-envois.log`.
   plateformes + AWS bien interrogé + (pour du 100%) agrégateur payant.
 - **Scoring par mots-clés = imprécis** : un marché parfait peut plafonner à ~75 (score
   additif borné), et « ratisser large » fait remonter du bruit (collectivités hors
-  cible : Ville de Rennes, Département de la Meuse...). Piste retenue : un **agent IA**
-  qui relit la sortie et reclasse la pertinence (voir plus bas / historique de conv).
+  cible : Ville de Rennes, Département de la Meuse...). → **RÉSOLU** : agent IA construit (voir §10).
+
+## 10. Agent IA de reclassement (FAIT ✅, 16/09/2026)
+- **Fichier** : `src/tri_ia.py`. Relit chaque marché (objet+acheteur+type+CPV+description)
+  et attribue une **note 0-100 + catégorie + raison** via le modèle Claude (SDK `anthropic`).
+  **Fait autorité** : remplace `score`/`category` ; garde `score_mots_cles` pour transparence.
+- **Branché** dans `main.py` après le scoring mots-clés, avant le filtrage hors_cible
+  (un marché que l'IA juge hors_cible **disparaît** de la liste → règle Rennes/Meuse).
+- **Optionnel & robuste** : section `ia:` dans config.yaml, `actif: false` par défaut.
+  Sans clé API / hors-ligne / erreur → repli sur le score mots-clés (rien ne casse).
+- **Clé API** : env `VEILLE_IA_KEY` (ou `ANTHROPIC_API_KEY`) → fichier local `cle-ia.txt`
+  (gitignore, comme le mdp mail). **Ne JAMAIS demander/stocker la clé dans le chat.**
+- **Coût maîtrisé** : lots de 12 + **cache** `data/ia-cache.json` (un marché déjà noté n'est
+  jamais renoté) → relances quotidiennes ~0. Modèle défaut `claude-haiku-4-5` (config :
+  peut passer à `claude-sonnet-5` / `claude-opus-5`).
+- **Définition cible** = `DEFINITION_CIBLE` dans `tri_ia.py` (surchargeable via
+  `ia.definition_cible`). Après modif → supprimer `data/ia-cache.json` pour renoter.
+- **Affichage** : `dashboard.py` montre la raison IA (🤖) sous l'objet + note dans le détail.
+- **Mode d'emploi utilisateur** : `GUIDE-AGENT-IA.md`.
+- **À calibrer avec Loyk** : coller objet+acheteur des 3 marchés cités (2026-TX-DEPDEV-034,
+  Rennes 26-86413, Meuse 26-88986) pour vérifier/ajuster la définition cible.
 
 > Note volontairement limitée à **l'outil de veille marché**.
