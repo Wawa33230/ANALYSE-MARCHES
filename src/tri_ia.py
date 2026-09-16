@@ -319,7 +319,9 @@ def reclasser(tenders: list[Tender], config) -> list[Tender]:
             print(f"   /!\\ Client IA indisponible : {e} -> score par mots-cles conserve.")
             return tenders
 
-        for debut in range(0, len(a_classer), taille_lot):
+        total = len(a_classer)
+        nb_lots = (total + taille_lot - 1) // taille_lot
+        for i_lot, debut in enumerate(range(0, total, taille_lot), start=1):
             lot = a_classer[debut:debut + taille_lot]
             marches = [_marche_pour_ia(t) for t in lot]
             try:
@@ -331,6 +333,13 @@ def reclasser(tenders: list[Tender], config) -> list[Tender]:
                 v = verdicts.get(t.id)
                 if v:
                     cache[t.id] = {**v, "modele": modele}
+            # Progression + sauvegarde AU FIL DE L'EAU : un run interrompu n'est
+            # jamais perdu (le cache garde tout ce qui a deja ete note).
+            fait = min(debut + len(lot), total)
+            print(f"   ... IA {fait}/{total} marches analyses "
+                  f"(lot {i_lot}/{nb_lots})", flush=True)
+            if i_lot % 5 == 0 or i_lot == nb_lots:
+                _save_cache(cache_path, cache)
         _save_cache(cache_path, cache)
 
     # 2) Appliquer les verdicts (cache) sur les marches.
