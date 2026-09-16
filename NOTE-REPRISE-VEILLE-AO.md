@@ -96,4 +96,22 @@ Puis vérifier `data/derniere-execution.txt` et `data/journal-envois.log`.
   `loyk.duporge@adomsenior.fr` — vérifier au début.
 - Ne JAMAIS demander / stocker le mot de passe d'application en clair dans le chat.
 
+## 9. Leçons apprises (à NE PAS réapprendre)
+- **Les mots-clés de recherche des sources DOIVENT dériver de la config** (scoring),
+  jamais d'une liste figée dans le code. Bug réel : le connecteur AWS
+  (`marches_publics_info.py`) avait une liste figée SANS « maintien à domicile » →
+  le marché **SEM4V** (100% cible, publié sur AWS) n'a jamais remonté. Corrigé via
+  `_queries(config)`. → Si un jour on ajoute un connecteur, il interroge la source
+  avec `config.scoring.mots_cles_prioritaires (+ secondaires)`, pas une liste en dur.
+- **achatpublic = non intégrable** (login + CAPTCHA hCaptcha + React). Ne pas
+  retenter de scraper. Seules voies : alerte e-mail depuis le compte (à vérifier),
+  surveillance manuelle, ou agrégateur payant.
+- **MAPA hors BOAMP** : beaucoup de MAPA ne sont QUE sur le profil acheteur du
+  bailleur (achatpublic, AWS, plateforme régionale). Couverture = alertes e-mail des
+  plateformes + AWS bien interrogé + (pour du 100%) agrégateur payant.
+- **Scoring par mots-clés = imprécis** : un marché parfait peut plafonner à ~75 (score
+  additif borné), et « ratisser large » fait remonter du bruit (collectivités hors
+  cible : Ville de Rennes, Département de la Meuse...). Piste retenue : un **agent IA**
+  qui relit la sortie et reclasse la pertinence (voir plus bas / historique de conv).
+
 > Note volontairement limitée à **l'outil de veille marché**.
