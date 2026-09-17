@@ -229,6 +229,10 @@ def build_html(tenders: list, new_ids: set, generated: str, actions: list | None
       Verifie toujours l'avis officiel via le lien avant de t'engager. Les scores sont indicatifs.<br>
       Le tableau de bord complet (recherche, tri, filtres, statuts) est en piece jointe (ZIP a ouvrir).
     </p>
+    <hr style="margin:26px 0;border:none;border-top:1px solid #ddd;">
+    <p style="color:#889;font-size:11px;margin-top:14px;padding:0 4px;line-height:1.5;">
+      🤖 <i>Generated with <a href="https://claude.ai/code" style="color:#1f4e79;text-decoration:none;">Claude Code</a></i>
+    </p>
   </div>
 </body></html>"""
 
