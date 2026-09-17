@@ -137,6 +137,12 @@ def _row_html(t, is_new: bool) -> str:
         f'<a href="{_esc(url)}" style="color:#1f4e79;font-weight:600;text-decoration:none;">Ouvrir l\'avis &#8599;</a>'
         if url else "-"
     )
+    desc = getattr(t, 'description', '') or ''
+    desc_html = (
+        f'<div style="color:#778;font-size:12px;margin-top:4px;line-height:1.4;">'
+        f'📝 {_esc(desc[:200])}</div>'  # Premier 200 caractères
+        if desc else ""
+    )
     return f"""
     <tr>
       <td style="padding:12px 10px;border-bottom:1px solid #eef1f4;vertical-align:top;width:52px;">
@@ -145,6 +151,7 @@ def _row_html(t, is_new: bool) -> str:
       </td>
       <td style="padding:12px 10px;border-bottom:1px solid #eef1f4;vertical-align:top;">
         <div style="font-weight:600;color:#13202e;font-size:14px;">{_esc(getattr(t, 'title', ''))}{new_tag}</div>
+        {desc_html}
         <div style="color:#566;font-size:12px;margin-top:2px;">{buyer}{dept_html} &middot; {source}</div>
         {ref_html}
       </td>
