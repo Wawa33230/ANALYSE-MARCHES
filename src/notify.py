@@ -138,11 +138,11 @@ def _row_html(t, is_new: bool) -> str:
         if url else "-"
     )
     desc = getattr(t, 'description', '') or ''
-    desc_html = (
-        f'<div style="color:#778;font-size:12px;margin-top:4px;line-height:1.4;">'
-        f'📝 {_esc(desc[:200])}</div>'  # Premier 200 caractères
-        if desc else ""
-    )
+    # Affiche la description sur plusieurs lignes si elle est longue
+    desc_html = ""
+    if desc:
+        desc_html = f'<div style="color:#7851a9;font-size:12px;margin-top:6px;line-height:1.5;font-style:italic;border-left:3px solid #e8d9f5;padding-left:10px;">{_esc(desc)}</div>'
+
     return f"""
     <tr>
       <td style="padding:12px 10px;border-bottom:1px solid #eef1f4;vertical-align:top;width:52px;">
@@ -152,7 +152,7 @@ def _row_html(t, is_new: bool) -> str:
       <td style="padding:12px 10px;border-bottom:1px solid #eef1f4;vertical-align:top;">
         <div style="font-weight:600;color:#13202e;font-size:14px;">{_esc(getattr(t, 'title', ''))}{new_tag}</div>
         {desc_html}
-        <div style="color:#566;font-size:12px;margin-top:2px;">{buyer}{dept_html} &middot; {source}</div>
+        <div style="color:#566;font-size:12px;margin-top:8px;">{buyer}{dept_html} &middot; {source}</div>
         {ref_html}
       </td>
       <td style="padding:12px 10px;border-bottom:1px solid #eef1f4;vertical-align:top;white-space:nowrap;text-align:right;">
