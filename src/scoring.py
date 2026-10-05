@@ -29,13 +29,21 @@ def as_text(value) -> str:
 
 
 def normalize(text) -> str:
-    """Minuscule + suppression des accents, pour comparer sans se soucier de la casse."""
+    """Minuscule + suppression des accents, pour comparer sans se soucier de la casse.
+
+    Les SEPARATEURS (traits d'union, apostrophes, ponctuation) sont transformes en
+    espaces : ainsi "Haute-Savoie Habitat" == "haute savoie habitat", "Cote d'Azur"
+    == "cote d azur", "l'habitat" == "l habitat". Sans cela, un acheteur ecrit avec
+    un trait d'union (Haute-Savoie) n'etait pas reconnu comme client connu.
+    """
     text = as_text(text)
     if not text:
         return ""
     text = unicodedata.normalize("NFD", text)
     text = "".join(c for c in text if unicodedata.category(c) != "Mn")
-    return text.lower()
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return text.strip()
 
 
 def _found(keywords: Iterable[str], haystack: str) -> list[str]:
@@ -136,7 +144,7 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
     has_core = has_bathroom or cpv_hit
     # Signal minimal "plomberie sanitaire" pour etre retenu du tout
     has_plumb = has_core or bool(sec_hits) or any(
-        w in text for w in ("plomberie", "sanitaire", "salle de bain", "salle d'eau")
+        w in text for w in ("plomberie", "sanitaire", "salle de bain", "salle d eau")
     )
 
     excluded = False

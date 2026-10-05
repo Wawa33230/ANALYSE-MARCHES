@@ -153,6 +153,13 @@ def _row_html(t, is_new: bool) -> str:
     dept = _esc(getattr(t, "department", "") or "")
     dept_html = f" &middot; Dpt {dept}" if dept else ""
     source = _esc(getattr(t, "source", "") or "")
+    ia_raison = _esc(getattr(t, "ia_raison", "") or "")
+    ia_html = (
+        f'<div style="font-size:12px;color:#5a4b8a;background:#f0edfa;'
+        f'border-left:3px solid #7c6bb0;padding:3px 8px;margin-top:5px;border-radius:0 5px 5px 0;">'
+        f'&#129302; {ia_raison}</div>'
+        if ia_raison else ""
+    )
     url = getattr(t, "url", "") or ""
     lien = (
         f'<a href="{_esc(url)}" style="color:#1f4e79;font-weight:600;text-decoration:none;">Ouvrir l\'avis &#8599;</a>'
@@ -168,6 +175,7 @@ def _row_html(t, is_new: bool) -> str:
         <div style="font-weight:600;color:#13202e;font-size:14px;">{_esc(getattr(t, 'title', ''))}{new_tag}</div>
         <div style="color:#566;font-size:12px;margin-top:2px;">{buyer}{dept_html} &middot; {source}</div>
         {ref_html}
+        {ia_html}
       </td>
       <td style="padding:12px 10px;border-bottom:1px solid #eef1f4;vertical-align:top;white-space:nowrap;text-align:right;">
         <div style="font-weight:700;color:{_days_color(t)};font-size:13px;">{_days_text(t)}</div>

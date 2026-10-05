@@ -148,6 +148,15 @@ scoring:
     - PMR
     - personne a mobilite reduite
     - maintien a domicile
+    - handicap
+    - en situation de handicap
+    - situation de handicap
+    - personne en situation de handicap
+    - senior
+    - seniors
+    - personne agee
+    - personnes agees
+    - perte d'autonomie
     - adaptation du logement
     - adaptation des logements
     - adaptation salle de bain
