@@ -470,6 +470,22 @@ scoring:
   #  true  = on ecarte les acheteurs "collectivite" non identifies comme bailleurs.
   exclure_collectivites: false
 
+  # --- SURVEILLANCE RENFORCEE (bailleurs a ne RATER sous aucun pretexte) ---
+  #  Pour ces acheteurs, AUCUN marche n'est ecarte par une regle de mots-cles :
+  #  il remonte toujours au moins en "a regarder", et l'agent IA tranche ensuite
+  #  (il le reclasse en hors_cible si c'est vraiment hors sujet). On est ainsi
+  #  certain de voir passer TOUS leurs marches pertinents.
+  #  De plus, le connecteur AWS (marches-publics.info) interroge la plateforme
+  #  PAR LE NOM de chacun de ces acheteurs (en plus des mots-cles) pour maximiser
+  #  la collecte de leurs consultations, MAPA compris.
+  #  (Secteur breton prioritaire - voir aussi l'alerte Megalis Bretagne.)
+  bailleurs_surveillance:
+    - morbihan habitat
+    - brest metropole habitat
+    - espacil
+    - archipel habitat
+    - aiguillon construction
+
   # --- Seuils de categorisation (sur le score final, de 0 a 100) ---
   seuil_prioritaire: 55      # >= 55  => CIBLE PRIORITAIRE (vert)
   seuil_a_regarder: 28       # >= 28  => A REGARDER (orange) ; en dessous => HORS CIBLE (rouge)

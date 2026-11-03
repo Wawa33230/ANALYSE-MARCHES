@@ -244,12 +244,23 @@ def score_tender(tender: Tender, scoring_cfg: dict) -> Tender:
     if "amiante" in text:
         flags.append("amiante (SS4)")
 
+    # 9b) SURVEILLANCE RENFORCEE (OPH prioritaires, ex: bailleurs bretons cibles).
+    #     Pour ces acheteurs, on ne laisse JAMAIS une regle de mots-cles ecarter un
+    #     marche : il remonte au moins en "a regarder", et c'est l'agent IA qui
+    #     tranche ensuite (il reclasse en hors_cible si c'est vraiment hors sujet).
+    #     Objectif : ne RATER AUCUN marche de ces bailleurs par un filtre trop brutal.
+    seuil_a = scoring_cfg.get("seuil_a_regarder", 28)
+    if _found(scoring_cfg.get("bailleurs_surveillance", []), buyer_n):
+        flags.append("🔎 surveillance renforcee")
+        excluded = False
+        if score < seuil_a:
+            score = seuil_a
+
     # Bornage 0-100
     score = max(0, min(100, score))
 
     # Categorisation
     seuil_p = scoring_cfg.get("seuil_prioritaire", 55)
-    seuil_a = scoring_cfg.get("seuil_a_regarder", 28)
     if excluded:
         category = "hors_cible"
     elif score >= seuil_p:

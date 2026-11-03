@@ -67,6 +67,16 @@ def _queries(config) -> list[str]:
             out.append(k)
     return out or DEFAULT_QUERIES
 
+
+def _surveillance_buyers(config) -> list[str]:
+    """Bailleurs sous surveillance renforcee : on interroge AWS PAR LEUR NOM pour
+    capter TOUTES leurs consultations (MAPA compris), meme sans mot-cle cible."""
+    try:
+        sc = config.scoring or {}
+    except Exception:  # noqa: BLE001
+        sc = {}
+    return [str(b).strip() for b in (sc.get("bailleurs_surveillance", []) or []) if str(b).strip()]
+
 # Analyse par "cartes" : chaque annonce commence par "Publie le ..." sur le site AWS.
 CARD_SPLIT = re.compile(r"Publi[ée]\s+le", re.IGNORECASE)
 PUB_RE = re.compile(r"Publi[ée]\s+le\s*:?\s*(\d{2})/(\d{2})/(\d{2,4})", re.IGNORECASE)
@@ -209,6 +219,14 @@ def _form_payload(query: str, page: int = 1) -> dict:
     }
 
 
+def _payload_by_buyer(name: str, page: int = 1) -> dict:
+    """Comme _form_payload mais recherche PAR NOM D'ACHETEUR (champ txtAcheteurNom),
+    sans mot-cle : remonte toutes les consultations en cours de ce bailleur."""
+    p = _form_payload("", page)
+    p["txtAcheteurNom"] = name
+    return p
+
+
 def fetch(config) -> list[Tender]:
     tenders: list[Tender] = []
     seen: set[str] = set()
@@ -233,6 +251,27 @@ def fetch(config) -> list[Tender]:
                     nouveaux += 1
             # Aucune nouvelle annonce sur cette page -> fin de pagination pour ce mot-cle
             # (couvre aussi le cas ou le site ignore le parametre de page).
+            if nouveaux == 0:
+                break
+
+    # Recherche PAR NOM D'ACHETEUR pour les bailleurs sous surveillance renforcee :
+    # remonte TOUTES leurs consultations en cours (MAPA compris), meme si le titre
+    # n'emploie aucun mot-cle cible. Le scoring + l'agent IA font ensuite le tri.
+    for name in _surveillance_buyers(config):
+        for page in range(1, MAX_PAGES + 1):
+            try:
+                resp = http_post_form(LISTER_URL, _payload_by_buyer(name, page),
+                                      headers={"Referer": SEARCH_URL})
+                html = resp.text
+            except Exception as e:  # noqa: BLE001
+                print(f"    /!\\ AWS (acheteur '{name}', p{page}) : {e}")
+                break
+            nouveaux = 0
+            for t in _parse(html):
+                if t.id not in seen:
+                    seen.add(t.id)
+                    tenders.append(t)
+                    nouveaux += 1
             if nouveaux == 0:
                 break
 
