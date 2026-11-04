@@ -25,43 +25,84 @@ API = "https://api.ted.europa.eu/v3/notices/search"
 NOTICE_URL = "https://ted.europa.eu/fr/notice/-/detail/{pub}"
 
 # CPV cibles cote TED (plomberie, sanitaire, salles de bains, rehabilitation)
-CPV = ["45330000", "45332400", "45211310", "45454000"]
+CPV = ["45330000", "45332400", "45211310", "45454000", "45453000"]
+
+
+def _ft_terms(config) -> list[str]:
+    """Mots-cles FORTS (>= 5 lettres) pour la recherche PLEIN TEXTE TED, derives de
+    la config. Indispensable : beaucoup de marches d'ADAPTATION / ACCESSIBILITE sont
+    classes par TED sous un CPV generique 'Travaux de construction' (hors de notre
+    liste CPV plomberie) -> seuls les mots du titre permettent de les capter
+    (cas Grand Delta Habitat : 'travaux d'adaptabilite des logements PMR')."""
+    try:
+        sc = config.scoring or {}
+    except Exception:  # noqa: BLE001
+        sc = {}
+    base = list(sc.get("mots_cles_prioritaires", []) or [])
+    out, seen = [], set()
+    for t in base:
+        t = (t or "").strip()
+        if len(t) >= 5 and t.lower() not in seen:
+            seen.add(t.lower())
+            out.append(t)
+    # Filet de securite : quelques termes cles toujours presents
+    for t in ("adaptabilite", "mobilite reduite", "accessibilite",
+              "salle de bain", "maintien a domicile", "adaptation"):
+        if t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out[:18]
+
+
+def _payload(query: str) -> dict:
+    return {
+        "query": query,
+        "fields": [
+            "publication-number", "notice-title", "buyer-name",
+            "classification-cpv", "publication-date",
+            "deadline-receipt-tender-date-lot",
+            "deadline-receipt-request-date-lot",
+            "deadline-date-lot", "deadline", "links",
+        ],
+        "limit": 200,
+        "scope": "ACTIVE",
+        "paginationMode": "PAGE_NUMBER",
+    }
+
+
+def _run(query: str, label: str) -> list[dict]:
+    """Execute une requete TED ; renvoie [] sans bloquer en cas d'erreur."""
+    try:
+        resp = http_post_json(API, _payload(query))
+        data = resp.json()
+        return data.get("notices", []) or data.get("results", []) or []
+    except Exception as e:  # noqa: BLE001
+        print(f"    /!\\ TED ({label}) : {e}")
+        return []
 
 
 def fetch(config) -> list[Tender]:
     jours = int(config.get("recherche.jours_recents", 45))
     since = (date.today() - timedelta(days=jours)).strftime("%Y%m%d")
     today = date.today().strftime("%Y%m%d")
+    dates = f"publication-date>={since}<={today}"
 
+    # 1) Requete par CPV plomberie/sanitaire (comportement historique, eprouve).
     cpv_clause = " OR ".join(f"classification-cpv={c}" for c in CPV)
-    query = (
-        f"({cpv_clause}) "
-        f"AND buyer-country=FRA "
-        f"AND publication-date>={since}<={today}"
-    )
+    q_cpv = f"({cpv_clause}) AND buyer-country=FRA AND {dates}"
 
-    payload = {
-        "query": query,
-        "fields": [
-            "publication-number",
-            "notice-title",
-            "buyer-name",
-            "classification-cpv",
-            "publication-date",
-            "deadline-receipt-tender-date-lot",
-            "deadline-receipt-request-date-lot",
-            "deadline-date-lot",
-            "deadline",
-            "links",
-        ],
-        "limit": 100,
-        "scope": "ACTIVE",
-        "paginationMode": "PAGE_NUMBER",
-    }
+    # 2) Requete PLEIN TEXTE par mots-cles cible (capte les marches d'adaptation /
+    #    accessibilite classes sous un CPV generique, hors liste CPV ci-dessus).
+    ft_clause = " OR ".join(f'FT ~ "{t}"' for t in _ft_terms(config))
+    q_ft = f"({ft_clause}) AND buyer-country=FRA AND {dates}"
 
-    resp = http_post_json(API, payload)
-    data = resp.json()
-    notices = data.get("notices", []) or data.get("results", [])
+    notices = _run(q_cpv, "CPV")
+    seen_ids = {_val(n.get("publication-number")) for n in notices}
+    for n in _run(q_ft, "mots-cles"):
+        pid = _val(n.get("publication-number"))
+        if pid and pid not in seen_ids:
+            seen_ids.add(pid)
+            notices.append(n)
 
     tenders: list[Tender] = []
     for n in notices:

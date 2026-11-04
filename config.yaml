@@ -159,6 +159,9 @@ scoring:
     - perte d'autonomie
     - adaptation du logement
     - adaptation des logements
+    - adaptabilite
+    - adaptabilite des logements
+    - travaux d'adaptabilite
     - adaptation salle de bain
     - adaptation salles de bain
     - adaptation        # mot discriminant n1 (cf. analyse 5 ans : "accord-cadre d'adaptation")
@@ -233,6 +236,7 @@ scoring:
     - hamaris
     - haute savoie habitat
     - leman habitat
+    - grand delta habitat
     - in cite
     - ligeris
     - lot habitat
